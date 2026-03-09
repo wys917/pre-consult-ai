@@ -6,7 +6,7 @@
 - 右侧：实时生成结构化病历摘要
 - 支持两种模式：
   - Mock 演示模式：无需任何模型 API，直接可以跑
-  - API 模式：预留了 DeepSeek 接口位置，后续补齐 `.env` 即可
+  - API 模式：使用DeepSeek辅助
 
 ## 已实现功能
 
@@ -39,21 +39,7 @@ http://127.0.0.1:5000
 
 ## 如何切到 API 模式
 
-1. 复制环境变量模板：
-
-```bash
-cp .env.example .env
-```
-
-2. 在 `.env` 中填写你自己的模型配置：
-
-```env
-DEEPSEEK_API_KEY=你的key
-DEEPSEEK_BASE_URL=你的聊天补全接口地址
-DEEPSEEK_MODEL=你的模型名
-```
-
-3. 页面右上角把模式切到 `API 模式`。
+ 页面右上角把模式切到 `API 模式`。
 
 ## 目录结构
 
@@ -61,7 +47,7 @@ DEEPSEEK_MODEL=你的模型名
 triage_demo/
 ├── app.py
 ├── requirements.txt
-├── .env.example
+├── .env
 ├── README.md
 ├── templates/
 │   └── index.html
@@ -70,12 +56,6 @@ triage_demo/
     └── app.js
 ```
 
-## 课程展示建议
-
-- 先点“腹痛案例”或“胸痛案例”
-- 展示左侧对话如何触发右侧摘要更新
-- 重点讲“自由文本 -> 结构化病历摘要”的转换
-- 再说明后续接入 DeepSeek 后，可以把当前 Mock 规则替换为真实大模型抽取
 
 ## 可继续增强的点
 
@@ -83,7 +63,6 @@ triage_demo/
 2. 支持导出 PDF 预问诊单
 3. 增加年龄、既往史、过敏史字段
 4. 增加医生端后台视图
-5. 接入真实大模型实现更自然的追问
 
 ## 免责声明
 

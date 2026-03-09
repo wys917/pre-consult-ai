@@ -162,6 +162,12 @@ async function sendMessage(text) {
 
     summary = { ...defaultSummary, ...data.summary };
     pushMessage('assistant', data.reply || '我已帮你整理好摘要。');
+
+    if (data.source === 'api') {
+      showToast(`本轮来源：DeepSeek API (${data.model || 'unknown'})`);
+    } else if (data.source === 'mock') {
+      showToast('本轮来源：Mock 规则引擎');
+    }
   } catch (error) {
     pushMessage('assistant', `当前请求没有成功：${error.message}`);
     showToast(error.message);

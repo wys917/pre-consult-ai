@@ -429,11 +429,15 @@ def api_chat():
     try:
         if mode == "api":
             summary = call_deepseek_api(messages)
+            source = "api"
+            model_name = MODEL or "unknown"
         else:
             summary = analyze_conversation(messages)
+            source = "mock"
+            model_name = "rule-based"
 
         reply = build_assistant_reply(summary)
-        return jsonify({"reply": reply, "summary": summary})
+        return jsonify({"reply": reply, "summary": summary, "source": source, "model": model_name})
     except requests.HTTPError as exc:
         return jsonify({"error": f"调用模型接口失败：{exc.response.text}"}), 502
     except Exception as exc:  # noqa: BLE001
