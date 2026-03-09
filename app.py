@@ -9,6 +9,10 @@ from flask import Flask, jsonify, render_template, request
 
 load_dotenv()
 
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+BASE_URL = os.getenv("DEEPSEEK_BASE_URL")
+MODEL = os.getenv("DEEPSEEK_MODEL")
+
 app = Flask(__name__)
 
 
@@ -340,7 +344,8 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
         "Content-Type": "application/json",
     }
 
-    response = requests.post(base_url, headers=headers, json=payload, timeout=60)
+    url = base_url.rstrip("/") + "/chat/completions"
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
     response.raise_for_status()
     data = response.json()
 
@@ -355,13 +360,65 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
     return summary
 
 
+def call_deepseek(messages):
+    url = f"{BASE_URL}/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    data = {
+        "model": MODEL,
+        "messages": messages,
+        "temperature": 0.2,
+    }
+
+    response = requests.post(url, headers=headers, json=data, timeout=60)
+    response.raise_for_status()
+
+    return response.json()["choices"][0]["message"]["content"]
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-@app.post("/api/chat")
+@app.route("/chat", methods=["POST"])
 def chat():
+    user_message = request.json["message"]
+
+    prompt = f"""
+你是一个门诊预问诊助手。
+请根据患者描述生成结构化病历摘要。
+
+患者输入：
+{user_message}
+
+请返回 JSON：
+
+chief_complaint
+duration
+accompanying_symptoms
+red_flags
+recommended_department
+triage_priority
+next_question
+"""
+
+    messages = [
+        {"role": "system", "content": "你是医疗预问诊助手"},
+        {"role": "user", "content": prompt},
+    ]
+
+    result = call_deepseek(messages)
+
+    return result
+
+
+@app.post("/api/chat")
+def api_chat():
     data = request.get_json(silent=True) or {}
     messages = data.get("messages", [])
     mode = data.get("mode", "mock")
