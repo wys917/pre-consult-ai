@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>门诊预问诊与智能分诊摘要 Demo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">医学人工智能 · 课程演示 Demo</p>
+        <h1>门诊预问诊与智能分诊摘要系统</h1>
+        <p class="subtitle">左侧与 AI 对话，右侧实时生成结构化病历摘要。当前为课程演示版本，不替代医生诊断。</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="mode-switch">
+          <span>模式</span>
+          <select id="modeSelect">
+            <option value="mock">Mock 演示模式</option>
+            <option value="api">API 模式（后续接 DeepSeek）</option>
+          </select>
+        </label>
+        <button class="secondary-btn" id="resetBtn">重置会话</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="panel panel-chat">
+        <div class="panel-header">
+          <div>
+            <h2>患者对话区</h2>
+            <p>模拟挂号前的预问诊过程，系统会持续追问关键信息。</p>
+          </div>
+          <div class="sample-group">
+            <button class="sample-btn" data-message="我发烧咳嗽三天了，喉咙也有点痛。">发热咳嗽案例</button>
+            <button class="sample-btn" data-message="我这两天一直肚子疼，还想吐，走路都会痛。">腹痛案例</button>
+            <button class="sample-btn" data-message="我刚刚突然胸口痛，还喘不上气。">胸痛案例</button>
+          </div>
+        </div>
+
+        <div class="chat-window" id="chatWindow"></div>
+
+        <div class="composer">
+          <textarea id="messageInput" rows="3" placeholder="请输入患者描述，例如：我发烧咳嗽三天了，最高 38.5 度。"></textarea>
+          <div class="composer-actions">
+            <span class="tip">Enter 发送，Shift + Enter 换行</span>
+            <button class="primary-btn" id="sendBtn">发送</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel-summary">
+        <div class="panel-header summary-header">
+          <div>
+            <h2>结构化病历摘要</h2>
+            <p>每轮对话后自动更新，适合演示“自由对话 → 医疗结构化信息”转换。</p>
+          </div>
+          <div class="summary-actions">
+            <button class="secondary-btn" id="copyBtn">复制摘要</button>
+            <button class="secondary-btn" id="downloadBtn">下载 JSON</button>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <article class="summary-card emphasis-card">
+            <span class="label">主诉</span>
+            <p class="value" id="chiefComplaint">待补充</p>
+          </article>
+          <article class="summary-card">
+            <span class="label">症状持续时间</span>
+            <p class="value" id="duration">待补充</p>
+          </article>
+          <article class="summary-card">
+            <span class="label">推荐科室</span>
+            <p class="value" id="recommendedDepartment">待判断</p>
+          </article>
+          <article class="summary-card triage-card">
+            <span class="label">就诊优先级</span>
+            <p class="value" id="triagePriority">待判断</p>
+            <span class="triage-badge neutral" id="triageBadge">待判断</span>
+          </article>
+        </div>
+
+        <div class="summary-columns">
+          <article class="list-card">
+            <div class="card-title-row">
+              <h3>伴随症状</h3>
+              <span class="card-hint">自动抽取</span>
+            </div>
+            <ul id="accompanyingSymptoms" class="chip-list empty-list">
+              <li>待补充</li>
+            </ul>
+          </article>
+
+          <article class="list-card alert-card">
+            <div class="card-title-row">
+              <h3>红旗征象</h3>
+              <span class="card-hint">用于分诊优先级</span>
+            </div>
+            <ul id="redFlags" class="chip-list empty-list">
+              <li>暂未识别</li>
+            </ul>
+          </article>
+        </div>
+
+        <article class="list-card missing-card">
+          <div class="card-title-row">
+            <h3>仍待补充信息</h3>
+            <span class="card-hint">帮助解释 AI 为什么继续追问</span>
+          </div>
+          <ul id="missingInformation" class="chip-list empty-list">
+            <li>等待患者输入</li>
+          </ul>
+        </article>
+
+        <article class="doctor-summary-card">
+          <div class="card-title-row">
+            <h3>医生端摘要</h3>
+            <span class="card-hint">可作为挂号前摘要 / 门诊前台展示</span>
+          </div>
+          <p id="doctorSummary" class="doctor-summary-text">患者信息尚未完善，等待对话开始。</p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <template id="messageTemplate">
+    <div class="message-row">
+      <div class="avatar"></div>
+      <div class="bubble"></div>
+    </div>
+  </template>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
