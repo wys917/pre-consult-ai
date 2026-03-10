@@ -173,8 +173,17 @@ function renderSummary() {
   renderList(fields.consistencyAlerts, summary.consistencyAlerts, '暂无');
   renderMissingList(summary.missingInformation);
 
-  const hasDepartment = summary.recommendedDepartment && summary.recommendedDepartment !== '待判断';
+  const hasDepartment = hasConfirmedDepartment(summary.recommendedDepartment);
   registerBtn.hidden = !hasDepartment;
+}
+
+function normalizeDepartment(value) {
+  return String(value || '').trim();
+}
+
+function hasConfirmedDepartment(value) {
+  const department = normalizeDepartment(value);
+  return Boolean(department) && department !== '待判断' && department !== '待补充';
 }
 
 function pushMessage(role, content) {
