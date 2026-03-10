@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -60,6 +60,7 @@
           <div class="summary-actions">
             <button class="secondary-btn" id="copyBtn">复制摘要</button>
             <button class="secondary-btn" id="downloadBtn">下载 JSON</button>
+            <button class="secondary-btn" id="pdfBtn">导出 PDF</button>
           </div>
         </div>
 
@@ -75,6 +76,8 @@
           <article class="summary-card">
             <span class="label">推荐科室</span>
             <p class="value" id="recommendedDepartment">待判断</p>
+            <p class="sub-value" id="departmentReason">待补充</p>
+            <button class="primary-btn register-btn" id="registerBtn" hidden>去挂号</button>
           </article>
           <article class="summary-card triage-card">
             <span class="label">就诊优先级</span>
@@ -83,36 +86,50 @@
           </article>
         </div>
 
-        <div class="summary-columns">
+        <div class="summary-columns three-col">
           <article class="list-card">
             <div class="card-title-row">
               <h3>伴随症状</h3>
-              <span class="card-hint">自动抽取</span>
             </div>
-            <ul id="accompanyingSymptoms" class="chip-list empty-list">
-              <li>待补充</li>
-            </ul>
+            <ul id="accompanyingSymptoms" class="chip-list empty-list"><li>待补充</li></ul>
           </article>
 
           <article class="list-card alert-card">
             <div class="card-title-row">
               <h3>红旗征象</h3>
-              <span class="card-hint">用于分诊优先级</span>
             </div>
-            <ul id="redFlags" class="chip-list empty-list">
-              <li>暂未识别</li>
-            </ul>
+            <ul id="redFlags" class="chip-list empty-list"><li>暂未识别</li></ul>
+          </article>
+
+          <article class="list-card warning-card">
+            <div class="card-title-row">
+              <h3>信息一致性提醒</h3>
+            </div>
+            <ul id="consistencyAlerts" class="chip-list empty-list"><li>暂无</li></ul>
+          </article>
+        </div>
+
+        <div class="summary-columns three-col">
+          <article class="list-card">
+            <div class="card-title-row"><h3>既往史</h3></div>
+            <ul id="pastHistory" class="chip-list empty-list"><li>待补充</li></ul>
+          </article>
+          <article class="summary-card">
+            <span class="label">过敏史</span>
+            <p class="value" id="allergyHistory">待补充</p>
+          </article>
+          <article class="summary-card">
+            <span class="label">近期用药史</span>
+            <p class="value" id="medicationHistory">待补充</p>
           </article>
         </div>
 
         <article class="list-card missing-card">
           <div class="card-title-row">
             <h3>仍待补充信息</h3>
-            <span class="card-hint">帮助解释 AI 为什么继续追问</span>
+            <span class="card-hint">可点击快捷补全</span>
           </div>
-          <ul id="missingInformation" class="chip-list empty-list">
-            <li>等待患者输入</li>
-          </ul>
+          <ul id="missingInformation" class="chip-list empty-list"><li>等待患者输入</li></ul>
         </article>
 
         <article class="doctor-summary-card">
@@ -124,6 +141,24 @@
         </article>
       </section>
     </main>
+  </div>
+
+  <div id="emergencyModal" class="modal" hidden>
+    <div class="modal-card emergency">
+      <h3>⚠️ 可能存在紧急风险</h3>
+      <p>系统识别到紧急信号，建议优先急诊评估。若症状持续加重，请立即前往急诊或拨打 120。</p>
+      <button class="primary-btn" id="emergencyCloseBtn">我知道了</button>
+    </div>
+  </div>
+
+  <div id="doctorModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="card-title-row">
+        <h3 id="doctorModalTitle">当日坐诊医生</h3>
+        <button class="secondary-btn" id="doctorCloseBtn">关闭</button>
+      </div>
+      <div id="doctorList" class="doctor-list"></div>
+    </div>
   </div>
 
   <template id="messageTemplate">
