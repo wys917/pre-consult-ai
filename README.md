@@ -22,11 +22,14 @@
 4. 医生端摘要生成
 5. 复制摘要 / 下载 JSON
 6. 示例病例一键演示
+7. 快捷补全追问与紧急弹窗提醒
+8. 既往史/过敏史/用药史抽取与一致性提醒
+9. 一键导出打印版 PDF 预问诊单
+10. 科室挂号面板（当日坐诊医生、剩余名额、挂号成功提示）
 
 ## 本地运行
 
 ```bash
-cd triage_demo
 pip install -r requirements.txt
 python app.py
 ```
@@ -34,7 +37,7 @@ python app.py
 然后打开浏览器访问：
 
 ```text
-http://127.0.0.1:5000
+http://127.0.0.1:5001
 ```
 
 ## 如何切到 API 模式
@@ -44,7 +47,7 @@ http://127.0.0.1:5000
 ## 目录结构
 
 ```text
-triage_demo/
+pre-consult-ai/
 ├── app.py
 ├── requirements.txt
 ├── .env

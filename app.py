@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import uuid
+from datetime import datetime
 from typing import Dict, List, Tuple
 
 import requests
@@ -8,10 +10,6 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 load_dotenv()
-
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-BASE_URL = os.getenv("DEEPSEEK_BASE_URL")
-MODEL = os.getenv("DEEPSEEK_MODEL")
 
 app = Flask(__name__)
 
@@ -41,8 +39,61 @@ SYMPTOM_PATTERNS: List[Tuple[str, List[str]]] = [
     ("抽搐", [r"抽搐", r"抽风"]),
 ]
 
-
 PRIORITY_LEVELS = {"普通": 0, "尽快": 1, "紧急": 2}
+
+HISTORY_KEYWORDS = {
+    "高血压": [r"高血压"],
+    "糖尿病": [r"糖尿病"],
+    "冠心病": [r"冠心病"],
+    "哮喘": [r"哮喘"],
+    "慢阻肺": [r"慢阻肺"],
+    "脑卒中": [r"脑梗", r"脑卒中"],
+}
+
+DEPARTMENT_REASONS = {
+    "急诊科": "存在紧急红旗征象，需优先急诊评估与处理。",
+    "心内科": "症状涉及胸痛/心悸，建议优先心血管系统专科评估。",
+    "呼吸内科": "症状集中在发热、咳嗽、咽痛或气短，符合呼吸系统就诊路径。",
+    "消化内科": "主要表现为腹痛、恶心、呕吐或腹泻，优先消化系统评估。",
+    "普外科": "腹痛位置提示外科急腹症风险，建议外科评估。",
+    "神经内科": "头痛头晕或肢体神经症状突出，建议神经系统评估。",
+    "皮肤科": "主要表现为皮疹/瘙痒等皮肤症状。",
+    "泌尿外科": "主要表现为尿痛/尿频等泌尿系统症状。",
+    "全科医学科": "当前症状不典型，建议先由全科进行初筛分诊。",
+}
+
+DOCTOR_SCHEDULES: Dict[str, List[Dict[str, object]]] = {
+    "呼吸内科": [
+        {"id": "resp-1", "name": "林晓明", "title": "主任医师", "intro": "擅长呼吸道感染、慢性咳嗽", "slots": 6},
+        {"id": "resp-2", "name": "赵雨桐", "title": "副主任医师", "intro": "擅长哮喘、肺炎规范化诊疗", "slots": 4},
+    ],
+    "心内科": [
+        {"id": "card-1", "name": "陈江", "title": "主任医师", "intro": "擅长胸痛中心流程和心衰管理", "slots": 3},
+        {"id": "card-2", "name": "周敏", "title": "主治医师", "intro": "擅长心悸与高血压长期管理", "slots": 5},
+    ],
+    "消化内科": [
+        {"id": "gi-1", "name": "王可", "title": "副主任医师", "intro": "擅长腹痛、消化道炎症诊疗", "slots": 5},
+        {"id": "gi-2", "name": "徐杰", "title": "主治医师", "intro": "擅长胃肠功能紊乱和早筛", "slots": 7},
+    ],
+    "神经内科": [
+        {"id": "neuro-1", "name": "刘畅", "title": "主任医师", "intro": "擅长头痛门诊和脑卒中随访", "slots": 4}
+    ],
+    "皮肤科": [
+        {"id": "derm-1", "name": "沈雅", "title": "主治医师", "intro": "擅长过敏性皮炎与皮疹诊治", "slots": 6}
+    ],
+    "泌尿外科": [
+        {"id": "uro-1", "name": "高远", "title": "副主任医师", "intro": "擅长泌尿感染和结石诊治", "slots": 5}
+    ],
+    "普外科": [
+        {"id": "surg-1", "name": "唐浩", "title": "主任医师", "intro": "擅长急腹症与微创外科", "slots": 2}
+    ],
+    "急诊科": [
+        {"id": "er-1", "name": "急诊值班团队", "title": "24小时接诊", "intro": "危重症快速评估与处置", "slots": 999}
+    ],
+    "全科医学科": [
+        {"id": "gp-1", "name": "何楠", "title": "主治医师", "intro": "擅长初诊分诊与慢病管理", "slots": 8}
+    ],
+}
 
 
 def bump_priority(current: str, target: str) -> str:
@@ -88,6 +139,34 @@ def extract_age(text: str) -> str:
 def extract_temperature(text: str) -> str:
     match = re.search(r"([3-4]\d(?:\.\d)?)\s*度", text)
     return match.group(1) if match else ""
+
+
+def extract_past_history(text: str) -> List[str]:
+    result = []
+    for label, patterns in HISTORY_KEYWORDS.items():
+        if any(re.search(pattern, text) for pattern in patterns):
+            result.append(label)
+    return result
+
+
+def extract_allergy_history(text: str) -> str:
+    if re.search(r"无过敏|不过敏|没有过敏", text):
+        return "否认明确过敏史"
+    match = re.search(r"(?:对|有)([^，。；\s]{1,12})(?:过敏)", text)
+    if match:
+        return f"{match.group(1)}过敏"
+    if "过敏" in text:
+        return "有过敏史（具体待补充）"
+    return "待补充"
+
+
+def extract_medication_history(text: str) -> str:
+    if re.search(r"没吃药|未用药|没有用药", text):
+        return "近期未自行用药"
+    matches = re.findall(r"(?:吃了|服用|用了)([^，。；\s]{1,12})", text)
+    if matches:
+        return "、".join(dict.fromkeys(matches))
+    return "待补充"
 
 
 def ordered_detected_symptoms(text: str) -> List[str]:
@@ -150,87 +229,63 @@ def detect_red_flags(text: str, symptoms: List[str], temperature: str) -> Tuple[
 def recommend_department(text: str, symptoms: List[str], priority: str) -> str:
     if priority == "紧急":
         return "急诊科"
-
     if "胸痛" in symptoms or "心悸" in symptoms:
         return "心内科"
-
     if "呼吸困难" in symptoms and "咳嗽" in symptoms:
         return "呼吸内科"
-
     if "咳嗽" in symptoms or "咽痛" in symptoms or "发热" in symptoms or "流涕/鼻塞" in symptoms:
         return "呼吸内科"
-
     if "腹痛" in symptoms:
         if re.search(r"右下腹", text):
             return "普外科"
         return "消化内科"
-
     if "头痛" in symptoms or "头晕" in symptoms or "肢体麻木/无力" in symptoms:
         return "神经内科"
-
     if "皮疹/瘙痒" in symptoms:
         return "皮肤科"
-
     if "尿痛/尿频" in symptoms:
         return "泌尿外科"
-
     return "全科医学科"
 
 
 def build_missing_information(text: str, symptoms: List[str], duration: str, age: str, temperature: str) -> List[str]:
     missing: List[str] = []
-
     if not age:
         missing.append("年龄")
     if not duration:
         missing.append("症状持续时间")
-
     if "发热" in symptoms and not temperature:
         missing.append("最高体温")
-
     if "胸痛" in symptoms and not re.search(r"呼吸困难|大汗|放射|左臂|下颌", text):
         missing.append("是否伴呼吸困难/大汗/放射痛")
-
     if "腹痛" in symptoms and not re.search(r"右下腹|左下腹|上腹|下腹|肚脐周围|胃部", text):
         missing.append("腹痛部位")
-
     if "咳嗽" in symptoms and not re.search(r"咳痰|痰|呼吸困难|气短", text):
         missing.append("是否咳痰或气短")
-
     if "头痛" in symptoms and not re.search(r"视物模糊|麻木|无力|恶心|呕吐", text):
         missing.append("是否伴视物模糊/麻木/呕吐")
-
     return missing
 
 
 def next_question_from_missing(missing: List[str], symptoms: List[str]) -> str:
     if not missing:
         return "目前关键信息基本齐全，我已经在右侧整理出结构化病历摘要。"
-
     if "是否伴呼吸困难/大汗/放射痛" in missing:
         return "请问胸痛时是否伴有呼吸困难、大汗，或者向左肩、左臂、下颌放射的疼痛？"
-
     if "腹痛部位" in missing:
         return "请问腹痛主要位于上腹、下腹、右下腹还是肚脐周围？疼痛是在加重还是缓解？"
-
     if "最高体温" in missing:
         return "请问最高体温大概是多少度？除了发热外，有没有明显怕冷、咳嗽或气短？"
-
     if "是否咳痰或气短" in missing:
         return "请问咳嗽时有没有痰，或者是否感觉气短、呼吸费力？"
-
     if "是否伴视物模糊/麻木/呕吐" in missing:
         return "请问头痛时有没有视物模糊、肢体麻木无力，或者明显恶心呕吐？"
-
     if missing[:2] == ["年龄", "症状持续时间"]:
         return "请先告诉我你的年龄，以及这些症状大概持续了多久。"
-
     if "年龄" in missing:
         return "请先告诉我你的年龄，方便我进一步判断就诊优先级。"
-
     if "症状持续时间" in missing:
         return "这些症状大概持续了多久，是突然出现还是逐渐加重的？"
-
     return f"为了继续完善预问诊信息，请补充：{'、'.join(missing[:2])}。"
 
 
@@ -244,6 +299,19 @@ def build_chief_complaint(symptoms: List[str], duration: str, text: str) -> str:
     if duration:
         complaint += duration
     return complaint
+
+
+def detect_consistency_alerts(raw_text: str) -> List[str]:
+    alerts: List[str] = []
+    if re.search(r"不发烧|没发烧|无发热", raw_text) and re.search(r"发烧|发热|[3-4]\d(?:\.\d)?度", raw_text):
+        alerts.append("体温描述前后不一致（既提到无发热又提到发热/高温）")
+    if re.search(r"不咳嗽|没有咳嗽", raw_text) and re.search(r"咳嗽", raw_text):
+        alerts.append("咳嗽症状前后描述不一致")
+    if re.search(r"不腹痛|没有腹痛", raw_text) and re.search(r"腹痛|肚子疼|胃痛", raw_text):
+        alerts.append("腹痛症状前后描述不一致")
+    if re.search(r"今天", raw_text) and re.search(r"[三四五六七八九十\d]+天", raw_text):
+        alerts.append("症状起病时间描述可能冲突（今天 vs 多天）")
+    return alerts
 
 
 def build_doctor_summary(summary: Dict[str, object], age: str) -> str:
@@ -264,7 +332,8 @@ def build_doctor_summary(summary: Dict[str, object], age: str) -> str:
 
 
 def analyze_conversation(messages: List[Dict[str, str]]) -> Dict[str, object]:
-    text = normalize_text(combined_user_text(messages))
+    raw_text = combined_user_text(messages)
+    text = normalize_text(raw_text)
     age = extract_age(text)
     duration = extract_duration(text)
     temperature = extract_temperature(text)
@@ -273,11 +342,12 @@ def analyze_conversation(messages: List[Dict[str, str]]) -> Dict[str, object]:
     department = recommend_department(text, symptoms, priority)
     missing = build_missing_information(text, symptoms, duration, age, temperature)
     chief_complaint = build_chief_complaint(symptoms, duration, text)
+    past_history = extract_past_history(text)
+    allergy_history = extract_allergy_history(text)
+    medication_history = extract_medication_history(text)
+    consistency_alerts = detect_consistency_alerts(raw_text)
 
-    if len(symptoms) <= 1:
-        accompanying = []
-    else:
-        accompanying = symptoms[1:5]
+    accompanying = symptoms[1:5] if len(symptoms) > 1 else []
 
     summary: Dict[str, object] = {
         "chiefComplaint": chief_complaint,
@@ -285,10 +355,15 @@ def analyze_conversation(messages: List[Dict[str, str]]) -> Dict[str, object]:
         "accompanyingSymptoms": accompanying,
         "redFlags": red_flags,
         "recommendedDepartment": department,
+        "departmentReason": DEPARTMENT_REASONS.get(department, "根据现有症状综合判断。"),
         "triagePriority": priority,
         "missingInformation": missing,
         "nextQuestion": next_question_from_missing(missing, symptoms),
         "doctorSummary": "",
+        "pastHistory": past_history,
+        "allergyHistory": allergy_history,
+        "medicationHistory": medication_history,
+        "consistencyAlerts": consistency_alerts,
     }
     summary["doctorSummary"] = build_doctor_summary(summary, age)
     return summary
@@ -314,7 +389,7 @@ SYSTEM_PROMPT = """你是一个门诊预问诊助手。你的任务不是给出�
 4. 继续提出下一轮最关键的追问。
 
 请务必以 JSON 返回，且字段严格为：
-chiefComplaint, duration, accompanyingSymptoms, redFlags, recommendedDepartment, triagePriority, missingInformation, nextQuestion, doctorSummary
+chiefComplaint, duration, accompanyingSymptoms, redFlags, recommendedDepartment, departmentReason, triagePriority, missingInformation, nextQuestion, doctorSummary, pastHistory, allergyHistory, medicationHistory, consistencyAlerts
 
 约束：
 - triagePriority 只能是：普通 / 尽快 / 紧急
@@ -355,66 +430,50 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError("模型返回结果无法解析为 JSON，请检查提示词或接口配置。") from exc
 
+    for key, default_value in {
+        "departmentReason": "根据现有症状综合判断。",
+        "pastHistory": [],
+        "allergyHistory": "待补充",
+        "medicationHistory": "待补充",
+        "consistencyAlerts": [],
+    }.items():
+        summary.setdefault(key, default_value)
+
     if "doctorSummary" not in summary:
         summary["doctorSummary"] = build_doctor_summary(summary, "")
+    summary["_model"] = model_name
     return summary
 
 
-def call_deepseek(messages):
-    url = f"{BASE_URL}/chat/completions"
+def validate_messages(messages: object) -> List[Dict[str, str]]:
+    if not isinstance(messages, list):
+        raise ValueError("messages 必须为数组")
 
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    validated: List[Dict[str, str]] = []
+    for index, message in enumerate(messages):
+        if not isinstance(message, dict):
+            raise ValueError(f"messages[{index}] 必须为对象")
 
-    data = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": 0.2,
-    }
+        role = message.get("role")
+        content = message.get("content")
 
-    response = requests.post(url, headers=headers, json=data, timeout=60)
-    response.raise_for_status()
+        if role not in {"user", "assistant", "system"}:
+            raise ValueError(f"messages[{index}].role 非法")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError(f"messages[{index}].content 必须为非空字符串")
 
-    return response.json()["choices"][0]["message"]["content"]
+        validated.append({"role": role, "content": content})
+
+    return validated
 
 
-@app.route("/")
-def index():
+def list_department_doctors(department: str) -> List[Dict[str, object]]:
+    return DOCTOR_SCHEDULES.get(department, [])
+
+
+@app.route("/", endpoint="home")
+def home_page():
     return render_template("index.html")
-
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    user_message = request.json["message"]
-
-    prompt = f"""
-你是一个门诊预问诊助手。
-请根据患者描述生成结构化病历摘要。
-
-患者输入：
-{user_message}
-
-请返回 JSON：
-
-chief_complaint
-duration
-accompanying_symptoms
-red_flags
-recommended_department
-triage_priority
-next_question
-"""
-
-    messages = [
-        {"role": "system", "content": "你是医疗预问诊助手"},
-        {"role": "user", "content": prompt},
-    ]
-
-    result = call_deepseek(messages)
-
-    return result
 
 
 @app.post("/api/chat")
@@ -423,14 +482,13 @@ def api_chat():
     messages = data.get("messages", [])
     mode = data.get("mode", "mock")
 
-    if not isinstance(messages, list):
-        return jsonify({"error": "messages 必须为数组"}), 400
-
     try:
+        messages = validate_messages(messages)
+
         if mode == "api":
             summary = call_deepseek_api(messages)
             source = "api"
-            model_name = MODEL or "unknown"
+            model_name = str(summary.pop("_model", "unknown"))
         else:
             summary = analyze_conversation(messages)
             source = "mock"
@@ -438,10 +496,52 @@ def api_chat():
 
         reply = build_assistant_reply(summary)
         return jsonify({"reply": reply, "summary": summary, "source": source, "model": model_name})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except requests.HTTPError as exc:
         return jsonify({"error": f"调用模型接口失败：{exc.response.text}"}), 502
+    except requests.RequestException as exc:
+        return jsonify({"error": f"调用模型接口异常：{str(exc)}"}), 502
     except Exception as exc:  # noqa: BLE001
         return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/departments/<department>/doctors")
+def api_department_doctors(department: str):
+    doctors = list_department_doctors(department)
+    if not doctors:
+        return jsonify({"error": "该科室暂无排班信息"}), 404
+    return jsonify({"department": department, "date": datetime.now().strftime("%Y-%m-%d"), "doctors": doctors})
+
+
+@app.post("/api/appointments")
+def api_appointments():
+    data = request.get_json(silent=True) or {}
+    department = str(data.get("department", "")).strip()
+    doctor_id = str(data.get("doctorId", "")).strip()
+    patient_name = str(data.get("patientName", "")).strip() or "患者"
+
+    if not department or not doctor_id:
+        return jsonify({"error": "department 和 doctorId 为必填"}), 400
+
+    doctors = list_department_doctors(department)
+    for doctor in doctors:
+        if doctor.get("id") == doctor_id:
+            if int(doctor.get("slots", 0)) <= 0:
+                return jsonify({"error": "该医生号源已满，请选择其他医生"}), 409
+            if doctor_id != "er-1":
+                doctor["slots"] = int(doctor["slots"]) - 1
+            return jsonify(
+                {
+                    "success": True,
+                    "appointmentId": f"APT-{uuid.uuid4().hex[:8].upper()}",
+                    "message": f"{patient_name} 挂号成功，已预约 {doctor['name']}（{doctor['title']}）。",
+                    "department": department,
+                    "doctor": doctor,
+                }
+            )
+
+    return jsonify({"error": "未找到对应医生"}), 404
 
 
 if __name__ == "__main__":
