@@ -26,7 +26,6 @@
 ## 本地运行
 
 ```bash
-cd triage_demo
 pip install -r requirements.txt
 python app.py
 ```
@@ -34,7 +33,7 @@ python app.py
 然后打开浏览器访问：
 
 ```text
-http://127.0.0.1:5000
+http://127.0.0.1:5001
 ```
 
 ## 如何切到 API 模式
@@ -44,7 +43,7 @@ http://127.0.0.1:5000
 ## 目录结构
 
 ```text
-triage_demo/
+pre-consult-ai/
 ├── app.py
 ├── requirements.txt
 ├── .env
