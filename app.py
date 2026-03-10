@@ -467,12 +467,34 @@ def validate_messages(messages: object) -> List[Dict[str, str]]:
     return validated
 
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+    validated: List[Dict[str, str]] = []
+    for index, message in enumerate(messages):
+        if not isinstance(message, dict):
+            raise ValueError(f"messages[{index}] 必须为对象")
+
+        role = message.get("role")
+        content = message.get("content")
+
+        if role not in {"user", "assistant", "system"}:
+            raise ValueError(f"messages[{index}].role 非法")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError(f"messages[{index}].content 必须为非空字符串")
+
+        validated.append({"role": role, "content": content})
+
+    return validated
+
+
 def list_department_doctors(department: str) -> List[Dict[str, object]]:
     return DOCTOR_SCHEDULES.get(department, [])
 
 
-@app.route("/", endpoint="home")
-def home_page():
+@app.route("/")
+def index():
     return render_template("index.html")
 
 
