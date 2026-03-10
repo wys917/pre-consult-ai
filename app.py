@@ -9,10 +9,6 @@ from flask import Flask, jsonify, render_template, request
 
 load_dotenv()
 
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-BASE_URL = os.getenv("DEEPSEEK_BASE_URL")
-MODEL = os.getenv("DEEPSEEK_MODEL")
-
 app = Flask(__name__)
 
 
@@ -357,64 +353,35 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
 
     if "doctorSummary" not in summary:
         summary["doctorSummary"] = build_doctor_summary(summary, "")
+    summary["_model"] = model_name
     return summary
 
 
-def call_deepseek(messages):
-    url = f"{BASE_URL}/chat/completions"
+def validate_messages(messages: object) -> List[Dict[str, str]]:
+    if not isinstance(messages, list):
+        raise ValueError("messages 必须为数组")
 
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    validated: List[Dict[str, str]] = []
+    for index, message in enumerate(messages):
+        if not isinstance(message, dict):
+            raise ValueError(f"messages[{index}] 必须为对象")
 
-    data = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": 0.2,
-    }
+        role = message.get("role")
+        content = message.get("content")
 
-    response = requests.post(url, headers=headers, json=data, timeout=60)
-    response.raise_for_status()
+        if role not in {"user", "assistant", "system"}:
+            raise ValueError(f"messages[{index}].role 非法")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError(f"messages[{index}].content 必须为非空字符串")
 
-    return response.json()["choices"][0]["message"]["content"]
+        validated.append({"role": role, "content": content})
+
+    return validated
 
 
 @app.route("/")
 def index():
     return render_template("index.html")
-
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    user_message = request.json["message"]
-
-    prompt = f"""
-你是一个门诊预问诊助手。
-请根据患者描述生成结构化病历摘要。
-
-患者输入：
-{user_message}
-
-请返回 JSON：
-
-chief_complaint
-duration
-accompanying_symptoms
-red_flags
-recommended_department
-triage_priority
-next_question
-"""
-
-    messages = [
-        {"role": "system", "content": "你是医疗预问诊助手"},
-        {"role": "user", "content": prompt},
-    ]
-
-    result = call_deepseek(messages)
-
-    return result
 
 
 @app.post("/api/chat")
@@ -423,14 +390,13 @@ def api_chat():
     messages = data.get("messages", [])
     mode = data.get("mode", "mock")
 
-    if not isinstance(messages, list):
-        return jsonify({"error": "messages 必须为数组"}), 400
-
     try:
+        messages = validate_messages(messages)
+
         if mode == "api":
             summary = call_deepseek_api(messages)
             source = "api"
-            model_name = MODEL or "unknown"
+            model_name = str(summary.pop("_model", "unknown"))
         else:
             summary = analyze_conversation(messages)
             source = "mock"
@@ -438,8 +404,12 @@ def api_chat():
 
         reply = build_assistant_reply(summary)
         return jsonify({"reply": reply, "summary": summary, "source": source, "model": model_name})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except requests.HTTPError as exc:
         return jsonify({"error": f"调用模型接口失败：{exc.response.text}"}), 502
+    except requests.RequestException as exc:
+        return jsonify({"error": f"调用模型接口异常：{str(exc)}"}), 502
     except Exception as exc:  # noqa: BLE001
         return jsonify({"error": str(exc)}), 500
 
