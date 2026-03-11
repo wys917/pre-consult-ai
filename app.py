@@ -104,8 +104,18 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", "", text or "")
 
 
-def combined_user_text(messages: List[Dict[str, str]]) -> str:
-    user_parts = [m.get("content", "") for m in messages if m.get("role") == "user"]
+def combined_user_text(messages: List[Dict[str, object]]) -> str:
+    user_parts = []
+    for m in messages:
+        if m.get("role") == "user":
+            content = m.get("content")
+            if isinstance(content, str):
+                user_parts.append(content)
+            elif isinstance(content, list):
+                # 从多模态列表中提取纯文本部分供正则引擎使用
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        user_parts.append(item.get("text", ""))
     return "\n".join(user_parts)
 
 
@@ -349,6 +359,10 @@ def analyze_conversation(messages: List[Dict[str, str]]) -> Dict[str, object]:
 
     accompanying = symptoms[1:5] if len(symptoms) > 1 else []
 
+    has_image = any(
+        isinstance(m.get("content"), list)
+        for m in messages if m.get("role") == "user"
+    )
     summary: Dict[str, object] = {
         "chiefComplaint": chief_complaint,
         "duration": duration or "待补充",
@@ -364,6 +378,7 @@ def analyze_conversation(messages: List[Dict[str, str]]) -> Dict[str, object]:
         "allergyHistory": allergy_history,
         "medicationHistory": medication_history,
         "consistencyAlerts": consistency_alerts,
+        "imageFindings": "检测到已上传图片，但当前处于 Mock 规则模式，无法解析图像内容，请切换至 API 模式。" if has_image else "未提供影像",
     }
     summary["doctorSummary"] = build_doctor_summary(summary, age)
     return summary
@@ -382,21 +397,21 @@ def build_assistant_reply(summary: Dict[str, object]) -> str:
     return f"{opening}{next_question}"
 
 
-SYSTEM_PROMPT = """你是一个门诊预问诊助手。你的任务不是给出最终诊断，而是：
-1. 从患者对话中提取结构化病历摘要。
+SYSTEM_PROMPT = """你是一个具备视觉能力的门诊预问诊助手。你的任务不是给出最终诊断，而是：
+1. 分析患者对话和上传的图片（如皮疹、化验单等），提取结构化病历摘要。
 2. 识别红旗征象并给出分诊优先级。
 3. 推荐就诊科室。
 4. 继续提出下一轮最关键的追问。
 
 请务必以 JSON 返回，且字段严格为：
-chiefComplaint, duration, accompanyingSymptoms, redFlags, recommendedDepartment, departmentReason, triagePriority, missingInformation, nextQuestion, doctorSummary, pastHistory, allergyHistory, medicationHistory, consistencyAlerts
+chiefComplaint, duration, accompanyingSymptoms, redFlags, recommendedDepartment, departmentReason, triagePriority, missingInformation, nextQuestion, doctorSummary, pastHistory, allergyHistory, medicationHistory, consistencyAlerts, imageFindings
 
 约束：
+- imageFindings: 对上传图片的客观描述（如"见红色斑丘疹"），如果没有图片则返回"未提供影像"。
 - triagePriority 只能是：普通 / 尽快 / 紧急
 - 不要给出确定性诊断
 - 输出内容必须是合法 JSON，不要使用 Markdown 代码块
 """
-
 
 def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
     api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
@@ -412,7 +427,6 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
         "model": model_name,
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + messages,
         "temperature": 0.2,
-        "response_format": {"type": "json_object"},
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -426,7 +440,17 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
 
     try:
         content = data["choices"][0]["message"]["content"]
-        summary = json.loads(content)
+        # 清理可能包含的 Markdown 代码块标记
+        clean_content = content.strip()
+        if clean_content.startswith("```json"):
+            clean_content = clean_content[7:]
+        elif clean_content.startswith("```"):
+            clean_content = clean_content[3:]
+        if clean_content.endswith("```"):
+            clean_content = clean_content[:-3]
+        clean_content = clean_content.strip()
+        
+        summary = json.loads(clean_content)
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError("模型返回结果无法解析为 JSON，请检查提示词或接口配置。") from exc
 
@@ -436,6 +460,7 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
         "allergyHistory": "待补充",
         "medicationHistory": "待补充",
         "consistencyAlerts": [],
+        "imageFindings": "未提供影像",
     }.items():
         summary.setdefault(key, default_value)
 
@@ -445,11 +470,11 @@ def call_deepseek_api(messages: List[Dict[str, str]]) -> Dict[str, object]:
     return summary
 
 
-def validate_messages(messages: object) -> List[Dict[str, str]]:
+def validate_messages(messages: object) -> List[Dict[str, object]]:
     if not isinstance(messages, list):
         raise ValueError("messages 必须为数组")
 
-    validated: List[Dict[str, str]] = []
+    validated: List[Dict[str, object]] = []
     for index, message in enumerate(messages):
         if not isinstance(message, dict):
             raise ValueError(f"messages[{index}] 必须为对象")
@@ -459,13 +484,14 @@ def validate_messages(messages: object) -> List[Dict[str, str]]:
 
         if role not in {"user", "assistant", "system"}:
             raise ValueError(f"messages[{index}].role 非法")
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError(f"messages[{index}].content 必须为非空字符串")
+        
+        # 允许 content 是字符串或列表（多模态）
+        if not content:
+             raise ValueError(f"messages[{index}].content 不能为空")
 
         validated.append({"role": role, "content": content})
 
     return validated
-
 
 def list_department_doctors(department: str) -> List[Dict[str, object]]:
     return DOCTOR_SCHEDULES.get(department, [])

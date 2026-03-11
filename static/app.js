@@ -30,6 +30,11 @@ const copyBtn = document.getElementById('copyBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const pdfBtn = document.getElementById('pdfBtn');
 const modeSelect = document.getElementById('modeSelect');
+const imageInput = document.getElementById('imageInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+const imagePreview = document.getElementById('imagePreview');
+const clearImageBtn = document.getElementById('clearImageBtn');
 const sampleButtons = document.querySelectorAll('.sample-btn');
 const registerBtn = document.getElementById('registerBtn');
 const emergencyModal = document.getElementById('emergencyModal');
@@ -40,6 +45,8 @@ const doctorModalTitle = document.getElementById('doctorModalTitle');
 const doctorList = document.getElementById('doctorList');
 
 const fields = {
+  consistencyAlerts: document.getElementById('consistencyAlerts'),
+  imageFindings: document.getElementById('imageFindings'), 
   chiefComplaint: document.getElementById('chiefComplaint'),
   duration: document.getElementById('duration'),
   recommendedDepartment: document.getElementById('recommendedDepartment'),
@@ -53,7 +60,6 @@ const fields = {
   pastHistory: document.getElementById('pastHistory'),
   allergyHistory: document.getElementById('allergyHistory'),
   medicationHistory: document.getElementById('medicationHistory'),
-  consistencyAlerts: document.getElementById('consistencyAlerts'),
 };
 
 function nowTime() {
@@ -150,6 +156,7 @@ function renderMissingList(items) {
 }
 
 function renderSummary() {
+  fields.imageFindings.textContent = summary.imageFindings || '未提供影像';
   fields.chiefComplaint.textContent = summary.chiefComplaint || '待补充';
   fields.duration.textContent = summary.duration || '待补充';
   fields.recommendedDepartment.textContent = summary.recommendedDepartment || '待判断';
@@ -186,25 +193,53 @@ function hasConfirmedDepartment(value) {
   return Boolean(department) && department !== '待判断' && department !== '待补充';
 }
 
-function pushMessage(role, content) {
-  messages.push({ role, content, time: nowTime() });
+function pushMessage(role, content, apiContent = null) {
+  // 如果没有传入 apiContent，就默认使用 content
+  messages.push({ role, content, apiContent: apiContent !== null ? apiContent : content, time: nowTime() });
 }
+
 
 async function sendMessage(text) {
   const content = (text || messageInput.value || '').trim();
-  if (!content || loading) return;
+  const file = imageInput.files[0]; 
+  
+  if (!content && !file) return; 
+  if (loading) return;
 
-  pushMessage('user', content);
+  // 1. 如果有图片，先转为 Base64，并构建多模态结构 (API Content)
+  let apiContent = content;
+  if (file) {
+    const base64Image = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+    apiContent = [
+      { type: 'text', text: content || '请分析这张图片。' },
+      { type: 'image_url', image_url: { url: base64Image } }
+    ];
+  }
+
+  // 2. 构建用于前端 UI 显示的纯文本 (Display Content)
+  let displayMessage = content;
+  if (file) displayMessage += '\n[已上传图片]';
+  
+  // 3. 将消息推入本地历史（同时保存 UI 显示文本 和 真实的 apiContent）
+  pushMessage('user', displayMessage, apiContent);
+  
   messageInput.value = '';
   loading = true;
   sendBtn.disabled = true;
   renderMessages();
 
   try {
+    // 4. 构造发送给后端的 messages 数组，强制使用 apiContent
+    const apiMessages = messages.map(m => ({ role: m.role, content: m.apiContent || m.content }));
+
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: modeSelect.value, messages }),
+      body: JSON.stringify({ mode: modeSelect.value, messages: apiMessages }),
     });
 
     const data = await response.json();
@@ -212,13 +247,15 @@ async function sendMessage(text) {
 
     summary = { ...defaultSummary, ...data.summary };
     pushMessage('assistant', data.reply || '我已帮你整理好摘要。');
+    
+    clearImageSelection();
 
     if (summary.triagePriority === '紧急' && !emergencyShown) {
       emergencyShown = true;
       openModal(emergencyModal);
     }
 
-    if (data.source === 'api') showToast(`本轮来源：DeepSeek API (${data.model || 'unknown'})`);
+    if (data.source === 'api') showToast(`本轮来源：API (${data.model || 'unknown'})`);
     else if (data.source === 'mock') showToast('本轮来源：Mock 规则引擎');
   } catch (error) {
     pushMessage('assistant', `当前请求没有成功：${error.message}`);
@@ -231,6 +268,22 @@ async function sendMessage(text) {
     messageInput.focus();
   }
 }
+
+// 新增：图片选择相关函数
+function clearImageSelection() {
+  imageInput.value = '';
+  imagePreview.src = '';
+  imagePreviewContainer.style.display = 'none';
+}
+
+uploadBtn.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', () => {
+  if (imageInput.files && imageInput.files[0]) {
+    imagePreview.src = URL.createObjectURL(imageInput.files[0]);
+    imagePreviewContainer.style.display = 'block';
+  }
+});
+clearImageBtn.addEventListener('click', clearImageSelection);
 
 function resetConversation() {
   messages = [{ role: 'assistant', content: initialAssistantMessage, time: nowTime() }];
