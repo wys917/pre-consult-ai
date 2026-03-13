@@ -39,6 +39,7 @@ def test_api_chat_mock_returns_extended_summary_fields(client):
     assert "allergyHistory" in summary
     assert "medicationHistory" in summary
     assert "departmentReason" in summary
+    assert "departmentProfile" in summary
     assert "consistencyAlerts" in summary
 
 
@@ -58,6 +59,7 @@ def test_department_doctors_returns_schedule(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["department"] == "呼吸内科"
+    assert payload["departmentProfile"]["location"] == "门诊楼 3 层 A 区"
     assert len(payload["doctors"]) >= 1
 
 

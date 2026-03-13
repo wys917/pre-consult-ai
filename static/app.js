@@ -14,6 +14,7 @@ const defaultSummary = {
   medicationHistory: '待补充',
   consistencyAlerts: [],
   imageFindings: '未提供影像',
+  departmentProfile: {},
 };
 
 const providerLabels = {
@@ -56,6 +57,12 @@ const bookingDepartment = document.getElementById('bookingDepartment');
 const bookingPriority = document.getElementById('bookingPriority');
 const bookingDate = document.getElementById('bookingDate');
 const bookingHint = document.getElementById('bookingHint');
+const departmentOverview = document.getElementById('departmentOverview');
+const departmentLocation = document.getElementById('departmentLocation');
+const departmentWaitTime = document.getElementById('departmentWaitTime');
+const departmentArea = document.getElementById('departmentArea');
+const departmentServices = document.getElementById('departmentServices');
+const departmentTips = document.getElementById('departmentTips');
 
 const fields = {
   consistencyAlerts: document.getElementById('consistencyAlerts'),
@@ -226,6 +233,21 @@ function renderMissingList(items) {
   fields.missingInformation.classList.remove('empty-list');
 }
 
+function renderDepartmentProfile(profile, department) {
+  const hasDepartment = hasConfirmedDepartment(department);
+  const safeProfile = profile && typeof profile === 'object' ? profile : {};
+  const location = safeProfile.location || '门诊分诊台';
+
+  departmentOverview.textContent = hasDepartment
+    ? safeProfile.overview || `建议先前往${department}完成专科评估。`
+    : '完成分诊后，将展示推荐科室的接诊范围与就诊提示。';
+  departmentLocation.textContent = hasDepartment ? department : '待判断';
+  departmentWaitTime.textContent = hasDepartment ? safeProfile.waitTime || '以现场为准' : '--';
+  departmentArea.textContent = hasDepartment ? location : '门诊分诊台';
+  renderList(departmentServices, hasDepartment ? safeProfile.services : [], '等待分诊结果');
+  renderList(departmentTips, hasDepartment ? safeProfile.tips : [], '完成分诊后更新');
+}
+
 function resetDoctorList(message = '点击上方按钮查看当日可挂医生。') {
   doctorList.innerHTML = `<div class="doctor-state-card">${escapeHtml(message)}</div>`;
 }
@@ -329,6 +351,7 @@ function renderSummary() {
   renderList(fields.pastHistory, summary.pastHistory, '待补充');
   renderList(fields.consistencyAlerts, summary.consistencyAlerts, '暂无');
   renderMissingList(summary.missingInformation);
+  renderDepartmentProfile(summary.departmentProfile, summary.recommendedDepartment);
   updateBookingPanel();
 }
 
@@ -604,6 +627,10 @@ async function loadDoctorAvailability({ silent = false } = {}) {
 
     activeDoctorDepartment = department;
     activeDoctorDate = data.date || todayLabel();
+    if (data.departmentProfile) {
+      summary = { ...summary, departmentProfile: data.departmentProfile };
+      renderDepartmentProfile(summary.departmentProfile, department);
+    }
     bookingDate.textContent = activeDoctorDate;
     renderDoctorAvailability(data.doctors, activeDoctorDate, department);
 
@@ -639,7 +666,6 @@ async function registerDoctor(event, department, doctorId) {
 
     btn.textContent = '挂号成功';
     btn.classList.add('success-btn');
-    showToast(data.message);
     openSuccessBanner(data);
     await loadDoctorAvailability({ silent: true });
   } catch (error) {
@@ -650,17 +676,20 @@ async function registerDoctor(event, department, doctorId) {
 }
 
 function openSuccessBanner(data) {
+  document.querySelectorAll('.success-banner').forEach((node) => node.remove());
   const toast = document.createElement('div');
   toast.className = 'success-banner';
   toast.innerHTML = `
     <strong>挂号成功</strong>
     <div>${escapeHtml(data.appointmentId)} · ${escapeHtml(data.department)} · ${escapeHtml(data.doctor.name)}</div>
+    <div>${escapeHtml(data.message)}</div>
   `;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 2800);
 }
 
 function showToast(text) {
+  document.querySelectorAll('.toast').forEach((node) => node.remove());
   const toast = document.createElement('div');
   toast.className = 'toast';
   toast.textContent = text;

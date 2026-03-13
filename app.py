@@ -63,6 +63,72 @@ DEPARTMENT_REASONS = {
     "全科医学科": "当前症状不典型，建议先由全科进行初筛分诊。",
 }
 
+DEPARTMENT_DETAILS: Dict[str, Dict[str, object]] = {
+    "急诊科": {
+        "overview": "24 小时接诊，优先处理胸痛、呼吸困难、意识异常等紧急症状。",
+        "location": "急诊楼 1 层",
+        "services": ["胸痛绿色通道", "卒中筛查", "危急重症分诊"],
+        "tips": ["建议立即到院", "携带既往检查结果", "如胸痛持续请勿自行驾车"],
+        "waitTime": "随到随分诊",
+    },
+    "心内科": {
+        "overview": "主要评估胸痛、胸闷、心悸、高血压等心血管相关问题。",
+        "location": "门诊楼 2 层",
+        "services": ["心电图评估", "高血压随访", "胸痛门诊"],
+        "tips": ["建议记录发作时间", "如胸痛加重先走急诊", "可携带既往心电图"],
+        "waitTime": "约 25-40 分钟",
+    },
+    "呼吸内科": {
+        "overview": "适合发热、咳嗽、咽痛、气短等呼吸系统症状的进一步评估。",
+        "location": "门诊楼 3 层 A 区",
+        "services": ["发热咳嗽分诊", "肺部感染评估", "慢性咳嗽门诊"],
+        "tips": ["建议佩戴口罩", "可准备体温记录", "如气短明显请优先就近急诊"],
+        "waitTime": "约 20-35 分钟",
+    },
+    "消化内科": {
+        "overview": "主要处理腹痛、恶心、呕吐、腹泻、反酸等消化系统症状。",
+        "location": "门诊楼 4 层 B 区",
+        "services": ["腹痛评估", "胃肠炎门诊", "消化镜前咨询"],
+        "tips": ["腹痛加重时避免自行进食", "可记录排便情况", "携带近期化验单更方便"],
+        "waitTime": "约 20-30 分钟",
+    },
+    "普外科": {
+        "overview": "适合右下腹痛、急腹症可疑、局部压痛明显等外科方向评估。",
+        "location": "门诊楼 7 层急腹症单元",
+        "services": ["急腹症筛查", "阑尾炎评估", "外科处置建议"],
+        "tips": ["疼痛明显加重请尽快到院", "避免自行服止痛药掩盖病情", "如发热呕吐明显建议加急"],
+        "waitTime": "约 10-20 分钟",
+    },
+    "神经内科": {
+        "overview": "适用于头痛、头晕、肢体麻木无力等神经系统相关主诉。",
+        "location": "门诊楼 5 层 A 区",
+        "services": ["头痛门诊", "眩晕鉴别", "脑卒中早筛"],
+        "tips": ["若伴口齿不清或偏瘫先去急诊", "建议描述起病时间", "可带既往头颅检查"],
+        "waitTime": "约 25-40 分钟",
+    },
+    "皮肤科": {
+        "overview": "适合皮疹、瘙痒、过敏反应和皮肤感染等情况。",
+        "location": "门诊楼 1 层 C 区",
+        "services": ["皮疹鉴别", "过敏评估", "皮肤感染门诊"],
+        "tips": ["可上传/携带皮损照片", "近期外用药物请一并说明", "避免自行抓挠刺激"],
+        "waitTime": "约 15-25 分钟",
+    },
+    "泌尿外科": {
+        "overview": "适合尿频、尿急、尿痛、血尿或泌尿结石相关不适。",
+        "location": "门诊楼 6 层 B 区",
+        "services": ["泌尿感染门诊", "排尿异常评估", "结石随诊"],
+        "tips": ["可记录排尿次数", "如伴高热腰痛请尽快就医", "携带尿检结果可提高效率"],
+        "waitTime": "约 20-30 分钟",
+    },
+    "全科医学科": {
+        "overview": "症状不够典型时可先由全科完成初筛，再转至更合适的专科。",
+        "location": "门诊楼 1 层全科中心",
+        "services": ["初诊分诊", "综合评估", "慢病随访建议"],
+        "tips": ["适合首次就诊", "可先梳理主要不适", "带齐既往病历更方便二次转诊"],
+        "waitTime": "约 15-20 分钟",
+    },
+}
+
 MODEL_PROVIDERS: Dict[str, Dict[str, object]] = {
     "doubao": {
         "label": "豆包",
@@ -108,6 +174,17 @@ DOCTOR_SCHEDULES: Dict[str, List[Dict[str, object]]] = {
             "fee": 42,
             "location": "门诊楼 3 层 A 区",
         },
+        {
+            "id": "resp-3",
+            "name": "冯知遥",
+            "title": "主治医师",
+            "intro": "擅长上呼吸道感染、咽痛与门诊雾化治疗评估。",
+            "specialty": "咽痛、气道炎症、雾化评估",
+            "schedule": "18:00-20:30",
+            "slots": 8,
+            "fee": 26,
+            "location": "门诊楼 3 层夜间门诊",
+        },
     ],
     "心内科": [
         {
@@ -132,6 +209,17 @@ DOCTOR_SCHEDULES: Dict[str, List[Dict[str, object]]] = {
             "fee": 36,
             "location": "门诊楼 2 层 B 区",
         },
+        {
+            "id": "card-3",
+            "name": "顾安澜",
+            "title": "副主任医师",
+            "intro": "擅长胸闷胸痛初筛、动态血压与冠脉危险因素评估。",
+            "specialty": "胸闷、胸痛、血压异常",
+            "schedule": "18:00-20:00",
+            "slots": 6,
+            "fee": 48,
+            "location": "门诊楼 2 层晚间门诊",
+        },
     ],
     "消化内科": [
         {
@@ -155,6 +243,17 @@ DOCTOR_SCHEDULES: Dict[str, List[Dict[str, object]]] = {
             "slots": 7,
             "fee": 32,
             "location": "门诊楼 4 层 B 区",
+        },
+        {
+            "id": "gi-3",
+            "name": "周闻溪",
+            "title": "住院总医师",
+            "intro": "擅长急性胃肠炎、腹泻与轻中度腹痛的快速评估。",
+            "specialty": "腹泻、恶心、胃肠炎",
+            "schedule": "17:30-20:00",
+            "slots": 9,
+            "fee": 18,
+            "location": "门诊楼 4 层便民门诊",
         },
     ],
     "神经内科": [
@@ -253,6 +352,7 @@ SUMMARY_DEFAULTS: Dict[str, object] = {
     "medicationHistory": "待补充",
     "consistencyAlerts": [],
     "imageFindings": "未提供影像",
+    "departmentProfile": {},
 }
 
 
@@ -502,6 +602,27 @@ def build_doctor_summary(summary: Dict[str, object], age: str) -> str:
     )
 
 
+def build_department_profile(department: str) -> Dict[str, object]:
+    info = DEPARTMENT_DETAILS.get(
+        department,
+        {
+            "overview": "该科室适合进一步进行专科评估。",
+            "location": "门诊分诊台咨询",
+            "services": ["专科评估", "基础检查建议"],
+            "tips": ["请结合现场分诊建议"],
+            "waitTime": "以当日号源为准",
+        },
+    )
+    return {
+        "name": department or "待判断",
+        "overview": info["overview"],
+        "location": info["location"],
+        "services": list(info["services"]),
+        "tips": list(info["tips"]),
+        "waitTime": info["waitTime"],
+    }
+
+
 def contains_uploaded_image(messages: List[Dict[str, object]]) -> bool:
     for message in messages:
         if message.get("role") != "user":
@@ -548,6 +669,7 @@ def analyze_conversation(messages: List[Dict[str, object]]) -> Dict[str, object]
         "allergyHistory": allergy_history,
         "medicationHistory": medication_history,
         "consistencyAlerts": consistency_alerts,
+        "departmentProfile": build_department_profile(department),
         "imageFindings": (
             "检测到已上传图片，但当前处于 Mock 规则模式，无法解析图像内容，请切换至支持视觉的模型。"
             if has_image
@@ -697,6 +819,10 @@ def normalize_model_summary(summary: Dict[str, object], has_image: bool, provide
 
     if not str(normalized.get("doctorSummary", "")).strip():
         normalized["doctorSummary"] = build_doctor_summary(normalized, "")
+
+    department = str(normalized.get("recommendedDepartment", "")).strip()
+    if not isinstance(normalized.get("departmentProfile"), dict) or not normalized.get("departmentProfile"):
+        normalized["departmentProfile"] = build_department_profile(department)
 
     return normalized
 
@@ -932,6 +1058,7 @@ def api_department_doctors(department: str):
         {
             "department": department,
             "date": datetime.now().strftime("%Y-%m-%d"),
+            "departmentProfile": build_department_profile(department),
             "doctors": doctors,
         }
     )
