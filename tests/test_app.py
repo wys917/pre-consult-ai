@@ -63,6 +63,16 @@ def test_department_doctors_returns_schedule(client):
     assert len(payload["doctors"]) >= 1
 
 
+def test_departments_list_returns_multiple_departments(client):
+    response = client.get("/api/departments")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    names = {item["name"] for item in payload["departments"]}
+    assert "呼吸内科" in names
+    assert "耳鼻喉科" in names
+
+
 def test_appointments_decrement_slots(client):
     before = client.get("/api/departments/呼吸内科/doctors").get_json()["doctors"]
     doctor_id = before[0]["id"]

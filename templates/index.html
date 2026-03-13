@@ -101,6 +101,7 @@
               <span class="label">推荐科室</span>
               <p class="value" id="recommendedDepartment">待判断</p>
               <p class="sub-value" id="departmentReason">待补充</p>
+              <button class="primary-btn register-btn inline-register-btn" id="registerBtn" disabled>查看科室与挂号</button>
             </article>
 
             <article class="summary-card triage-card">
@@ -109,34 +110,6 @@
               <span class="triage-badge neutral" id="triageBadge">待判断</span>
             </article>
           </div>
-
-          <article class="department-insight-card">
-            <div class="card-title-row">
-              <div>
-                <h3>科室信息</h3>
-                <p class="card-hint" id="departmentOverview">完成分诊后，将展示推荐科室的接诊范围与就诊提示。</p>
-              </div>
-              <span class="department-location" id="departmentLocation">待判断</span>
-            </div>
-            <div class="department-metrics">
-              <div class="department-metric">
-                <span>候诊参考</span>
-                <strong id="departmentWaitTime">--</strong>
-              </div>
-              <div class="department-metric">
-                <span>就诊位置</span>
-                <strong id="departmentArea">门诊分诊台</strong>
-              </div>
-            </div>
-            <div class="department-block">
-              <span class="mini-label">接诊范围</span>
-              <ul id="departmentServices" class="chip-list empty-list"><li>等待分诊结果</li></ul>
-            </div>
-            <div class="department-block">
-              <span class="mini-label">就诊提示</span>
-              <ul id="departmentTips" class="chip-list empty-list"><li>完成分诊后更新</li></ul>
-            </div>
-          </article>
 
           <details class="accordion-card" open>
             <summary class="accordion-toggle">
@@ -223,35 +196,6 @@
             </div>
           </details>
 
-          <article class="booking-panel">
-            <div class="booking-head">
-              <div>
-                <p class="section-tag">模拟挂号</p>
-                <h3>当日号源推荐</h3>
-                <p id="bookingHint" class="booking-hint">完成分诊后，可直接查看匹配科室的当日可挂医生。</p>
-              </div>
-              <button class="primary-btn register-btn" id="registerBtn" disabled>查看当日号源</button>
-            </div>
-
-            <div class="booking-metrics">
-              <div class="booking-metric">
-                <span>推荐科室</span>
-                <strong id="bookingDepartment">待判断</strong>
-              </div>
-              <div class="booking-metric">
-                <span>分诊优先级</span>
-                <strong id="bookingPriority">待判断</strong>
-              </div>
-              <div class="booking-metric">
-                <span>日期</span>
-                <strong id="bookingDate">--</strong>
-              </div>
-            </div>
-
-            <div id="doctorList" class="doctor-list">
-              <div class="doctor-state-card">点击上方按钮查看当日可挂医生。</div>
-            </div>
-          </article>
         </div>
       </section>
     </main>
@@ -262,6 +206,64 @@
       <h3>可能存在紧急风险</h3>
       <p>系统识别到紧急信号，建议优先急诊评估。若症状持续加重，请立即前往急诊或拨打 120。</p>
       <button class="primary-btn" id="emergencyCloseBtn">我知道了</button>
+    </div>
+  </div>
+
+  <div id="bookingModal" class="modal booking-modal" hidden>
+    <div class="modal-card booking-modal-card">
+      <div class="booking-modal-head">
+        <div>
+          <p class="section-tag">模拟挂号工作台</p>
+          <h3 id="bookingModalTitle">推荐科室与当日号源</h3>
+          <p id="bookingModalHint" class="card-hint">点击下方诊室卡片，可切换查看不同科室的医生排班。</p>
+        </div>
+        <button class="secondary-btn" id="bookingCloseBtn">关闭</button>
+      </div>
+
+      <div class="booking-modal-grid">
+        <aside class="booking-sidebar">
+          <div class="booking-priority-card">
+            <span class="mini-label">分诊优先级</span>
+            <strong id="bookingPriority">待判断</strong>
+            <p id="bookingHint" class="booking-hint">完成分诊后，可查看推荐科室与当日号源。</p>
+          </div>
+          <div id="departmentPicker" class="department-picker"></div>
+        </aside>
+
+        <section class="booking-stage">
+          <article class="department-insight-card booking-insight-card">
+            <div class="card-title-row">
+              <div>
+                <h3 id="departmentLocation">待判断</h3>
+                <p class="card-hint" id="departmentOverview">完成分诊后，将展示推荐科室的接诊范围与就诊提示。</p>
+              </div>
+              <span class="department-location" id="departmentTag">待判断</span>
+            </div>
+            <div class="department-metrics">
+              <div class="department-metric">
+                <span>候诊参考</span>
+                <strong id="departmentWaitTime">--</strong>
+              </div>
+              <div class="department-metric">
+                <span>今日日期</span>
+                <strong id="bookingDate">--</strong>
+              </div>
+            </div>
+            <div class="department-block">
+              <span class="mini-label">接诊范围</span>
+              <ul id="departmentServices" class="chip-list empty-list"><li>等待分诊结果</li></ul>
+            </div>
+            <div class="department-block">
+              <span class="mini-label">就诊提示</span>
+              <ul id="departmentTips" class="chip-list empty-list"><li>完成分诊后更新</li></ul>
+            </div>
+          </article>
+
+          <div id="doctorList" class="doctor-list">
+            <div class="doctor-state-card">点击左侧诊室卡片查看当日可挂医生。</div>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 

@@ -31,6 +31,7 @@ let loading = false;
 let emergencyShown = false;
 let activeDoctorDepartment = '';
 let activeDoctorDate = '';
+let departmentCatalog = [];
 
 const chatWindow = document.getElementById('chatWindow');
 const messageInput = document.getElementById('messageInput');
@@ -50,17 +51,21 @@ const sampleButtons = document.querySelectorAll('.sample-btn');
 const registerBtn = document.getElementById('registerBtn');
 const emergencyModal = document.getElementById('emergencyModal');
 const emergencyCloseBtn = document.getElementById('emergencyCloseBtn');
+const bookingModal = document.getElementById('bookingModal');
+const bookingCloseBtn = document.getElementById('bookingCloseBtn');
+const bookingModalTitle = document.getElementById('bookingModalTitle');
+const bookingModalHint = document.getElementById('bookingModalHint');
+const departmentPicker = document.getElementById('departmentPicker');
 const doctorList = document.getElementById('doctorList');
 const summaryScroll = document.getElementById('summaryScroll');
 
-const bookingDepartment = document.getElementById('bookingDepartment');
 const bookingPriority = document.getElementById('bookingPriority');
 const bookingDate = document.getElementById('bookingDate');
 const bookingHint = document.getElementById('bookingHint');
 const departmentOverview = document.getElementById('departmentOverview');
 const departmentLocation = document.getElementById('departmentLocation');
 const departmentWaitTime = document.getElementById('departmentWaitTime');
-const departmentArea = document.getElementById('departmentArea');
+const departmentTag = document.getElementById('departmentTag');
 const departmentServices = document.getElementById('departmentServices');
 const departmentTips = document.getElementById('departmentTips');
 
@@ -241,14 +246,35 @@ function renderDepartmentProfile(profile, department) {
   departmentOverview.textContent = hasDepartment
     ? safeProfile.overview || `建议先前往${department}完成专科评估。`
     : '完成分诊后，将展示推荐科室的接诊范围与就诊提示。';
-  departmentLocation.textContent = hasDepartment ? department : '待判断';
+  departmentLocation.textContent = hasDepartment ? location : '门诊分诊台';
+  departmentTag.textContent = hasDepartment ? department : '待判断';
   departmentWaitTime.textContent = hasDepartment ? safeProfile.waitTime || '以现场为准' : '--';
-  departmentArea.textContent = hasDepartment ? location : '门诊分诊台';
   renderList(departmentServices, hasDepartment ? safeProfile.services : [], '等待分诊结果');
   renderList(departmentTips, hasDepartment ? safeProfile.tips : [], '完成分诊后更新');
 }
 
-function resetDoctorList(message = '点击上方按钮查看当日可挂医生。') {
+function renderDepartmentPicker() {
+  departmentPicker.innerHTML = '';
+  if (!departmentCatalog.length) {
+    departmentPicker.innerHTML = '<div class="doctor-state-card">暂无诊室数据</div>';
+    return;
+  }
+
+  departmentCatalog.forEach((department) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `department-pick-card${department.name === activeDoctorDepartment ? ' active' : ''}`;
+    button.innerHTML = `
+      <strong>${escapeHtml(department.name)}</strong>
+      <span>${escapeHtml(department.location || '门诊分诊台')}</span>
+      <small>${department.doctorCount || 0} 位医生</small>
+    `;
+    button.addEventListener('click', () => openBookingWorkspace(department.name));
+    departmentPicker.appendChild(button);
+  });
+}
+
+function resetDoctorList(message = '点击左侧诊室卡片查看当日可挂医生。') {
   doctorList.innerHTML = `<div class="doctor-state-card">${escapeHtml(message)}</div>`;
 }
 
@@ -304,26 +330,19 @@ function updateBookingPanel() {
   const priority = summary.triagePriority || '待判断';
   const hasDepartment = hasConfirmedDepartment(department);
 
-  bookingDepartment.textContent = department;
   bookingPriority.textContent = priority;
-  bookingDate.textContent = activeDoctorDate || todayLabel();
+  bookingDate.textContent = activeDoctorDate || '--';
   bookingHint.textContent = hasDepartment
-    ? `系统已推测建议前往 ${department}，可以直接查看当日可挂医生与号源。`
-    : '完成分诊后，可直接查看匹配科室的当日可挂医生。';
+    ? `系统建议优先前往 ${department}，点击按钮进入挂号工作台查看详细科室信息与号源。`
+    : '完成分诊后，可点击按钮进入挂号工作台。';
 
   registerBtn.disabled = !hasDepartment;
-  registerBtn.textContent = hasDepartment ? '查看当日号源' : '等待分诊结果';
+  registerBtn.textContent = hasDepartment ? '查看科室与挂号' : '等待分诊结果';
 
   if (!hasDepartment) {
     activeDoctorDepartment = '';
     activeDoctorDate = '';
     bookingDate.textContent = '--';
-    resetDoctorList('完成分诊后，可在这里查看当日可挂医生。');
-  } else if (activeDoctorDepartment && activeDoctorDepartment !== department) {
-    activeDoctorDepartment = '';
-    activeDoctorDate = '';
-    bookingDate.textContent = todayLabel();
-    resetDoctorList(`推荐科室已更新为 ${department}，点击按钮刷新当日号源。`);
   }
 }
 
@@ -351,7 +370,6 @@ function renderSummary() {
   renderList(fields.pastHistory, summary.pastHistory, '待补充');
   renderList(fields.consistencyAlerts, summary.consistencyAlerts, '暂无');
   renderMissingList(summary.missingInformation);
-  renderDepartmentProfile(summary.departmentProfile, summary.recommendedDepartment);
   updateBookingPanel();
 }
 
@@ -441,7 +459,8 @@ function resetConversation() {
   activeDoctorDepartment = '';
   activeDoctorDate = '';
   closeModal(emergencyModal);
-  resetDoctorList('点击上方按钮查看当日可挂医生。');
+  closeModal(bookingModal);
+  resetDoctorList();
   renderMessages();
   renderSummary();
   clearImageSelection();
@@ -609,15 +628,21 @@ function closeModal(element) {
   element.hidden = true;
 }
 
+async function ensureDepartmentCatalog() {
+  if (departmentCatalog.length) return;
+  const response = await fetch('/api/departments');
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || '加载诊室列表失败');
+  departmentCatalog = data.departments || [];
+}
+
 async function loadDoctorAvailability({ silent = false } = {}) {
-  const department = summary.recommendedDepartment;
+  const department = activeDoctorDepartment || summary.recommendedDepartment;
   if (!hasConfirmedDepartment(department)) {
     showToast('请先完成分诊再挂号');
     return;
   }
 
-  registerBtn.disabled = true;
-  registerBtn.textContent = '加载号源中...';
   doctorList.innerHTML = '<div class="doctor-state-card">正在加载当日医生号源...</div>';
 
   try {
@@ -632,7 +657,10 @@ async function loadDoctorAvailability({ silent = false } = {}) {
       renderDepartmentProfile(summary.departmentProfile, department);
     }
     bookingDate.textContent = activeDoctorDate;
+    bookingModalTitle.textContent = `${department} · 推荐科室与当日号源`;
+    bookingModalHint.textContent = `当前展示 ${department} 的接诊信息与当日可挂医生，你也可以切换左侧其他诊室。`;
     renderDoctorAvailability(data.doctors, activeDoctorDate, department);
+    renderDepartmentPicker();
 
     if (!silent) {
       showToast(`${department} 当日号源已更新`);
@@ -642,6 +670,26 @@ async function loadDoctorAvailability({ silent = false } = {}) {
     showToast(error.message);
   } finally {
     updateBookingPanel();
+  }
+}
+
+async function openBookingWorkspace(preferredDepartment = '') {
+  const targetDepartment = preferredDepartment || summary.recommendedDepartment;
+  if (!hasConfirmedDepartment(targetDepartment)) {
+    showToast('请先完成分诊再进入挂号界面');
+    return;
+  }
+
+  try {
+    await ensureDepartmentCatalog();
+    activeDoctorDepartment = targetDepartment;
+    bookingPriority.textContent = summary.triagePriority || '待判断';
+    bookingHint.textContent = `系统建议优先前往 ${targetDepartment}，你也可以切换查看其他诊室。`;
+    openModal(bookingModal);
+    renderDepartmentPicker();
+    await loadDoctorAvailability({ silent: true });
+  } catch (error) {
+    showToast(error.message);
   }
 }
 
@@ -728,8 +776,9 @@ resetBtn.addEventListener('click', resetConversation);
 copyBtn.addEventListener('click', copySummary);
 downloadBtn.addEventListener('click', downloadSummary);
 pdfBtn.addEventListener('click', exportSummaryPdf);
-registerBtn.addEventListener('click', () => loadDoctorAvailability());
+registerBtn.addEventListener('click', () => openBookingWorkspace());
 emergencyCloseBtn.addEventListener('click', () => closeModal(emergencyModal));
+bookingCloseBtn.addEventListener('click', () => closeModal(bookingModal));
 
 messageInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.shiftKey) {

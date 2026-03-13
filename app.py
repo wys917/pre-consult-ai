@@ -127,6 +127,41 @@ DEPARTMENT_DETAILS: Dict[str, Dict[str, object]] = {
         "tips": ["适合首次就诊", "可先梳理主要不适", "带齐既往病历更方便二次转诊"],
         "waitTime": "约 15-20 分钟",
     },
+    "耳鼻喉科": {
+        "overview": "适合咽痛、鼻塞、耳痛、眩晕等耳鼻喉相关不适。",
+        "location": "门诊楼 3 层 C 区",
+        "services": ["咽喉检查", "鼻炎评估", "耳鸣耳痛门诊"],
+        "tips": ["持续高热伴咽痛建议尽快就诊", "可说明是否夜间加重", "携带既往喉镜结果更方便"],
+        "waitTime": "约 15-25 分钟",
+    },
+    "骨科": {
+        "overview": "适合关节肿痛、扭伤、跌倒后疼痛与活动受限等情况。",
+        "location": "门诊楼 6 层 A 区",
+        "services": ["扭伤评估", "关节疼痛门诊", "运动损伤咨询"],
+        "tips": ["若明显畸形建议急诊", "可描述受伤机制", "准备既往影像资料"],
+        "waitTime": "约 20-35 分钟",
+    },
+    "内分泌科": {
+        "overview": "适合血糖异常、甲状腺相关症状、体重波动和慢病随访。",
+        "location": "门诊楼 5 层 B 区",
+        "services": ["糖尿病随访", "甲状腺门诊", "代谢评估"],
+        "tips": ["可带近期血糖记录", "空腹化验结果更方便", "慢病药物请一并说明"],
+        "waitTime": "约 20-30 分钟",
+    },
+    "妇科": {
+        "overview": "适合月经异常、下腹痛、白带异常等女性专科问题。",
+        "location": "门诊楼 2 层 C 区",
+        "services": ["月经异常评估", "盆腔不适门诊", "妇科炎症咨询"],
+        "tips": ["急性剧痛或大量出血请尽快就诊", "可记录末次月经", "检查前避免自行用药"],
+        "waitTime": "约 20-35 分钟",
+    },
+    "儿科": {
+        "overview": "适合儿童发热、咳嗽、腹泻及常见急症的初步评估。",
+        "location": "儿科门诊楼 2 层",
+        "services": ["发热门诊", "儿童呼吸门诊", "儿童消化门诊"],
+        "tips": ["请携带监护人证件", "可准备体温记录", "精神差明显请尽快就诊"],
+        "waitTime": "约 20-30 分钟",
+    },
 }
 
 MODEL_PROVIDERS: Dict[str, Dict[str, object]] = {
@@ -333,6 +368,126 @@ DOCTOR_SCHEDULES: Dict[str, List[Dict[str, object]]] = {
             "fee": 28,
             "location": "门诊楼 1 层全科中心",
         }
+    ],
+    "耳鼻喉科": [
+        {
+            "id": "ent-1",
+            "name": "江临",
+            "title": "副主任医师",
+            "intro": "擅长咽痛、急慢性鼻炎及耳鸣门诊评估。",
+            "specialty": "咽痛、鼻塞、耳鸣",
+            "schedule": "09:00-12:00",
+            "slots": 7,
+            "fee": 40,
+            "location": "门诊楼 3 层 C 区",
+        },
+        {
+            "id": "ent-2",
+            "name": "叶知夏",
+            "title": "主治医师",
+            "intro": "擅长扁桃体炎、咽喉不适和过敏性鼻炎管理。",
+            "specialty": "扁桃体炎、鼻炎",
+            "schedule": "14:00-17:00",
+            "slots": 8,
+            "fee": 26,
+            "location": "门诊楼 3 层 C 区",
+        },
+    ],
+    "骨科": [
+        {
+            "id": "ortho-1",
+            "name": "陆沉",
+            "title": "主任医师",
+            "intro": "擅长关节疼痛、创伤后疼痛与运动损伤处理。",
+            "specialty": "关节疼痛、运动损伤",
+            "schedule": "09:30-12:00",
+            "slots": 5,
+            "fee": 60,
+            "location": "门诊楼 6 层 A 区",
+        },
+        {
+            "id": "ortho-2",
+            "name": "何砚舟",
+            "title": "主治医师",
+            "intro": "擅长扭伤拉伤、颈肩腰腿痛与骨科随访。",
+            "specialty": "扭伤、腰腿痛",
+            "schedule": "13:30-17:00",
+            "slots": 9,
+            "fee": 30,
+            "location": "门诊楼 6 层 A 区",
+        },
+    ],
+    "内分泌科": [
+        {
+            "id": "endo-1",
+            "name": "沈青禾",
+            "title": "副主任医师",
+            "intro": "擅长糖尿病、甲状腺结节与代谢综合征评估。",
+            "specialty": "糖尿病、甲状腺",
+            "schedule": "08:30-11:30",
+            "slots": 6,
+            "fee": 48,
+            "location": "门诊楼 5 层 B 区",
+        },
+        {
+            "id": "endo-2",
+            "name": "许星然",
+            "title": "主治医师",
+            "intro": "擅长血糖管理和肥胖相关代谢咨询。",
+            "specialty": "血糖管理、代谢咨询",
+            "schedule": "14:00-17:30",
+            "slots": 7,
+            "fee": 32,
+            "location": "门诊楼 5 层 B 区",
+        },
+    ],
+    "妇科": [
+        {
+            "id": "gyn-1",
+            "name": "苏禾",
+            "title": "主任医师",
+            "intro": "擅长月经异常、盆腔痛与常见妇科炎症诊疗。",
+            "specialty": "月经异常、下腹痛",
+            "schedule": "09:00-12:00",
+            "slots": 5,
+            "fee": 58,
+            "location": "门诊楼 2 层 C 区",
+        },
+        {
+            "id": "gyn-2",
+            "name": "程晚",
+            "title": "主治医师",
+            "intro": "擅长白带异常、妇科感染和复诊随访。",
+            "specialty": "妇科感染、复诊",
+            "schedule": "13:30-16:30",
+            "slots": 8,
+            "fee": 28,
+            "location": "门诊楼 2 层 C 区",
+        },
+    ],
+    "儿科": [
+        {
+            "id": "ped-1",
+            "name": "陶然",
+            "title": "副主任医师",
+            "intro": "擅长儿童发热、呼吸道感染与过敏评估。",
+            "specialty": "儿童发热、咳嗽",
+            "schedule": "09:00-12:00",
+            "slots": 10,
+            "fee": 35,
+            "location": "儿科门诊楼 2 层",
+        },
+        {
+            "id": "ped-2",
+            "name": "邵知予",
+            "title": "主治医师",
+            "intro": "擅长儿童腹泻、呕吐和急性胃肠炎评估。",
+            "specialty": "儿童腹泻、呕吐",
+            "schedule": "14:00-17:00",
+            "slots": 9,
+            "fee": 24,
+            "location": "儿科门诊楼 2 层",
+        },
     ],
 }
 
@@ -913,6 +1068,23 @@ def list_department_doctors(department: str) -> List[Dict[str, object]]:
     return DOCTOR_SCHEDULES.get(department, [])
 
 
+def list_departments() -> List[Dict[str, object]]:
+    names = sorted(set(DEPARTMENT_DETAILS.keys()) | set(DOCTOR_SCHEDULES.keys()))
+    departments: List[Dict[str, object]] = []
+    for name in names:
+        profile = build_department_profile(name)
+        departments.append(
+            {
+                "name": name,
+                "location": profile["location"],
+                "waitTime": profile["waitTime"],
+                "overview": profile["overview"],
+                "doctorCount": len(DOCTOR_SCHEDULES.get(name, [])),
+            }
+        )
+    return departments
+
+
 def format_list(items: object, empty_text: str) -> str:
     if isinstance(items, list) and items:
         return "、".join(str(item) for item in items)
@@ -1062,6 +1234,11 @@ def api_department_doctors(department: str):
             "doctors": doctors,
         }
     )
+
+
+@app.get("/api/departments")
+def api_departments():
+    return jsonify({"departments": list_departments()})
 
 
 @app.post("/api/appointments")
