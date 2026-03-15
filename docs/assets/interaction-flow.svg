@@ -1,0 +1,76 @@
+<svg width="1400" height="820" viewBox="0 0 1400 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f7fbff"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e65e0"/>
+      <stop offset="100%" stop-color="#25a0d7"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#95a8c4" flood-opacity="0.22"/>
+    </filter>
+    <marker id="arrow2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#4f6f9c"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="820" fill="#f3f7fc"/>
+  <text x="60" y="68" font-size="34" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#173055">一次完整预问诊的数据流</text>
+  <text x="60" y="104" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#60708a">这个流程图对应仓库中的真实行为，不是理想化架构图：消息先进入 /api/chat，再被规则引擎或外部模型处理，然后驱动摘要展示、风险提示和挂号模拟。</text>
+
+  <rect x="70" y="170" rx="22" ry="22" width="230" height="110" fill="url(#card)" stroke="#d8e2f0" filter="url(#shadow)"/>
+  <text x="185" y="214" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#23395f">1. 患者输入</text>
+  <text x="185" y="248" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">文本症状描述</text>
+  <text x="185" y="274" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">可选图片上传</text>
+
+  <rect x="370" y="170" rx="22" ry="22" width="260" height="110" fill="url(#card)" stroke="#d8e2f0" filter="url(#shadow)"/>
+  <text x="500" y="214" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#23395f">2. 前端打包消息</text>
+  <text x="500" y="248" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">role + content 数组</text>
+  <text x="500" y="274" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">fetch 到 /api/chat</text>
+
+  <rect x="700" y="170" rx="22" ry="22" width="260" height="110" fill="url(#card)" stroke="#d8e2f0" filter="url(#shadow)"/>
+  <text x="830" y="214" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#23395f">3. 后端校验</text>
+  <text x="830" y="248" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">检查 role 合法性</text>
+  <text x="830" y="274" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">解析 provider / mode</text>
+
+  <rect x="1030" y="170" rx="22" ry="22" width="280" height="110" fill="url(#accent)" filter="url(#shadow)"/>
+  <text x="1170" y="214" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#ffffff">4. 路由分流</text>
+  <text x="1170" y="248" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#e9f2ff">Mock 规则引擎 或 外部模型接口</text>
+  <text x="1170" y="274" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#e9f2ff">输出统一 summary 结构</text>
+
+  <rect x="190" y="390" rx="22" ry="22" width="300" height="180" fill="url(#card)" stroke="#d8e2f0" filter="url(#shadow)"/>
+  <text x="340" y="432" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#23395f">5A. Mock 规则链路</text>
+  <text x="340" y="470" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">正则抽取年龄、时长、体温</text>
+  <text x="340" y="500" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">症状词表匹配</text>
+  <text x="340" y="530" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">红旗征象与分诊优先级判断</text>
+  <text x="340" y="560" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">生成下一轮追问和医生摘要</text>
+
+  <rect x="560" y="390" rx="22" ry="22" width="300" height="180" fill="url(#card)" stroke="#d8e2f0" filter="url(#shadow)"/>
+  <text x="710" y="432" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#23395f">5B. 模型接口链路</text>
+  <text x="710" y="470" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">系统提示词 + 历史消息</text>
+  <text x="710" y="500" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">必要时把图片降级成文本说明</text>
+  <text x="710" y="530" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">解析 JSON 并做字段归一化</text>
+  <text x="710" y="560" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">补齐 doctorSummary 和 departmentProfile</text>
+
+  <rect x="930" y="390" rx="22" ry="22" width="300" height="180" fill="url(#card)" stroke="#d8e2f0" filter="url(#shadow)"/>
+  <text x="1080" y="432" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#23395f">6. 前端回填</text>
+  <text x="1080" y="470" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">刷新摘要卡片</text>
+  <text x="1080" y="500" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">必要时弹出紧急风险提醒</text>
+  <text x="1080" y="530" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">展示待补充信息快捷补全</text>
+  <text x="1080" y="560" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">开放挂号和导出功能</text>
+
+  <rect x="430" y="650" rx="22" ry="22" width="540" height="100" fill="#edf5ff" stroke="#cad9ef" filter="url(#shadow)"/>
+  <text x="700" y="694" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#24466d">7. 扩展动作</text>
+  <text x="700" y="728" text-anchor="middle" font-size="17" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">查询科室与排班、模拟挂号、导出 JSON / PDF，形成课程展示里最完整的业务闭环。</text>
+
+  <line x1="300" y1="225" x2="370" y2="225" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="630" y1="225" x2="700" y2="225" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="960" y1="225" x2="1030" y2="225" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="1110" y1="280" x2="1110" y2="390" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="1090" y1="280" x2="780" y2="390" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="1050" y1="280" x2="470" y2="390" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="490" y1="480" x2="560" y2="480" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="860" y1="480" x2="930" y2="480" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+  <line x1="1080" y1="570" x2="900" y2="650" stroke="#4f6f9c" stroke-width="4" marker-end="url(#arrow2)"/>
+</svg>

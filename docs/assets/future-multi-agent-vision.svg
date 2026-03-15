@@ -1,0 +1,89 @@
+<svg width="1400" height="980" viewBox="0 0 1400 980" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6fbff"/>
+      <stop offset="100%" stop-color="#eef4ff"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f67e2"/>
+      <stop offset="100%" stop-color="#22a2d7"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f8d8d"/>
+      <stop offset="100%" stop-color="#4bc28f"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#91a8cb" flood-opacity="0.24"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#5b78aa"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="980" fill="url(#bg)"/>
+  <text x="60" y="72" font-size="34" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#173055">Proactive Multi-Agent Medical Triage System 演进愿景</text>
+  <text x="60" y="110" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#62738f">当前仓库完成的是自然语言到结构化病历的 MVP；未来它将演进为主动式、多智能体、可执行复杂任务的医疗预审网络。</text>
+
+  <rect x="70" y="170" rx="26" ry="26" width="360" height="700" fill="#ffffff" stroke="#d7e2f2" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="96" y="198" rx="18" ry="18" width="308" height="72" fill="url(#blue)"/>
+  <text x="250" y="242" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#ffffff">现在：MVP 核心链路</text>
+  <rect x="96" y="304" rx="18" ry="18" width="308" height="118" fill="#f7faff" stroke="#d5def0"/>
+  <text x="118" y="342" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#22385d">患者自然语言输入</text>
+  <text x="118" y="374" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">文本 + 可选图片</text>
+  <text x="118" y="402" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">目标：降低信息采集门槛</text>
+  <rect x="96" y="446" rx="18" ry="18" width="308" height="118" fill="#f7faff" stroke="#d5def0"/>
+  <text x="118" y="484" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#22385d">规则 / 模型双通道整理</text>
+  <text x="118" y="516" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">结构化摘要</text>
+  <text x="118" y="544" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">推荐科室与风险优先级</text>
+  <rect x="96" y="588" rx="18" ry="18" width="308" height="232" fill="#f7faff" stroke="#d5def0"/>
+  <text x="118" y="626" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#22385d">MVP 价值</text>
+  <text x="118" y="662" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">验证“自然语言 → 结构化病历”</text>
+  <text x="118" y="690" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">验证“摘要 → 分诊建议”</text>
+  <text x="118" y="718" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">验证“结果 → 模拟挂号 / PDF 导出”</text>
+  <text x="118" y="758" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">它不是终点，而是第一块基石。</text>
+
+  <rect x="520" y="170" rx="26" ry="26" width="380" height="700" fill="#ffffff" stroke="#d7e2f2" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="546" y="198" rx="18" ry="18" width="328" height="72" fill="url(#green)"/>
+  <text x="710" y="242" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#ffffff">下一阶段：多智能体协同网络</text>
+  <rect x="546" y="304" rx="18" ry="18" width="328" height="110" fill="#f7fffb" stroke="#cfe7dc"/>
+  <text x="570" y="342" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#204b49">信息抽取 Agent</text>
+  <text x="570" y="374" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#5f7d7a">统一清洗文本、图像、表单与病史</text>
+  <rect x="546" y="436" rx="18" ry="18" width="152" height="118" fill="#f7fffb" stroke="#cfe7dc"/>
+  <text x="622" y="474" text-anchor="middle" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#204b49">呼吸专科 Agent</text>
+  <text x="622" y="506" text-anchor="middle" font-size="15" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#5f7d7a">感染、气短、发热</text>
+  <rect x="722" y="436" rx="18" ry="18" width="152" height="118" fill="#f7fffb" stroke="#cfe7dc"/>
+  <text x="798" y="474" text-anchor="middle" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#204b49">心血管 Agent</text>
+  <text x="798" y="506" text-anchor="middle" font-size="15" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#5f7d7a">胸痛、心率、危险分层</text>
+  <rect x="546" y="576" rx="18" ry="18" width="152" height="118" fill="#f7fffb" stroke="#cfe7dc"/>
+  <text x="622" y="614" text-anchor="middle" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#204b49">消化 Agent</text>
+  <text x="622" y="646" text-anchor="middle" font-size="15" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#5f7d7a">腹痛、呕吐、便血</text>
+  <rect x="722" y="576" rx="18" ry="18" width="152" height="118" fill="#f7fffb" stroke="#cfe7dc"/>
+  <text x="798" y="614" text-anchor="middle" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#204b49">红旗仲裁 Agent</text>
+  <text x="798" y="646" text-anchor="middle" font-size="15" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#5f7d7a">交叉验证与最终仲裁</text>
+  <rect x="546" y="722" rx="18" ry="18" width="328" height="98" fill="#f7fffb" stroke="#cfe7dc"/>
+  <text x="570" y="760" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#204b49">输出不再是单结论</text>
+  <text x="570" y="792" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#5f7d7a">而是带冲突校验、证据来源和置信分层的内部会诊结果。</text>
+
+  <rect x="990" y="170" rx="26" ry="26" width="340" height="700" fill="#ffffff" stroke="#d7e2f2" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="1016" y="198" rx="18" ry="18" width="288" height="72" fill="url(#blue)"/>
+  <text x="1160" y="242" text-anchor="middle" font-size="24" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#ffffff">远景：主动式实体 Agent</text>
+  <rect x="1016" y="304" rx="18" ry="18" width="288" height="132" fill="#f7faff" stroke="#d5def0"/>
+  <text x="1040" y="342" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#22385d">复杂工程接管</text>
+  <text x="1040" y="374" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">自动编写并运行 Python 分析脚本</text>
+  <text x="1040" y="402" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">操作终端安装医学分析依赖</text>
+  <rect x="1016" y="458" rx="18" ry="18" width="288" height="132" fill="#f7faff" stroke="#d5def0"/>
+  <text x="1040" y="496" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#22385d">真实系统接入</text>
+  <text x="1040" y="528" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">跨越 HIS / LIS / PACS 调取历史数据</text>
+  <text x="1040" y="556" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">在医生接诊前生成趋势报告</text>
+  <rect x="1016" y="612" rx="18" ry="18" width="288" height="166" fill="#f7faff" stroke="#d5def0"/>
+  <text x="1040" y="650" font-size="20" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" fill="#22385d">时序联合建模</text>
+  <text x="1040" y="682" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">智能穿戴高频时序数据</text>
+  <text x="1040" y="710" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">连续心率、睡眠、HRV、步态变化</text>
+  <text x="1040" y="738" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">联合问诊与检验结果建模</text>
+  <text x="1040" y="766" font-size="16" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#61718a">捕捉静态问诊发现不了的早期异常</text>
+
+  <line x1="430" y1="520" x2="520" y2="520" stroke="#5b78aa" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="900" y1="520" x2="990" y2="520" stroke="#5b78aa" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <rect x="70" y="900" rx="18" ry="18" width="1260" height="48" fill="#eaf3ff" stroke="#d0ddf2"/>
+  <text x="98" y="932" font-size="18" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#26466f">关键词：MVP、主动式预审、多智能体协同、实体 Agent、时序联合建模、医生接诊前自动化准备。</text>
+</svg>

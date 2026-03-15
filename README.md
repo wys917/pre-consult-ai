@@ -51,12 +51,20 @@ pre-consult-ai/
 ├── app.py
 ├── requirements.txt
 ├── .env
+├── .gitignore
 ├── README.md
+├── docs/
+│   ├── 医学人工智能系统设计-图文版.md
+│   ├── 医学人工智能系统设计-图文版.pdf
+│   ├── assets/
+│   └── pdf/
 ├── templates/
 │   └── index.html
-└── static/
-    ├── style.css
-    └── app.js
+├── static/
+│   ├── style.css
+│   └── app.js
+└── tests/
+    └── test_app.py
 ```
 
 
