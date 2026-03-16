@@ -25,8 +25,72 @@ const providerLabels = {
 
 const initialAssistantMessage = '你好，我是门诊预问诊助手。请描述一下你目前最主要的不适症状，我会帮你整理就诊摘要。';
 
+const DEFAULT_SESSION_ID = 'default';
+const SESSION_STORAGE_KEY = 'pre-consult-ai:sessionId';
+
+function createSessionId() {
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+  return `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function safeGet(storage, key) {
+  try {
+    return storage.getItem(key) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function safeSet(storage, key, value) {
+  try {
+    storage.setItem(key, value);
+  } catch (error) {
+    // Ignore storage failures (e.g. private mode / disabled storage).
+  }
+}
+
+function resolveSessionId() {
+  const url = new URL(window.location.href);
+  const querySession = (url.searchParams.get('session') || '').trim();
+  const cleanQuery = querySession.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  if (cleanQuery) {
+    // Query param is authoritative; store it for this tab and as "last used" for doctor side.
+    safeSet(sessionStorage, SESSION_STORAGE_KEY, cleanQuery);
+    safeSet(localStorage, SESSION_STORAGE_KEY, cleanQuery);
+    return cleanQuery;
+  }
+
+  // Prefer per-tab session so multiple patient tabs don't overwrite each other.
+  const tabStored = safeGet(sessionStorage, SESSION_STORAGE_KEY).trim();
+  if (tabStored) return tabStored;
+
+  const isDoctorRoute = window.location.pathname.startsWith('/doctor');
+
+  // Doctor side can fall back to the last known session for convenience.
+  if (isDoctorRoute) {
+    const globalStored = safeGet(localStorage, SESSION_STORAGE_KEY).trim();
+    if (globalStored) {
+      safeSet(sessionStorage, SESSION_STORAGE_KEY, globalStored);
+      return globalStored;
+    }
+    safeSet(sessionStorage, SESSION_STORAGE_KEY, DEFAULT_SESSION_ID);
+    return DEFAULT_SESSION_ID;
+  }
+
+  // Patient/combined: generate a fresh session per tab by default.
+  const created = createSessionId();
+  safeSet(sessionStorage, SESSION_STORAGE_KEY, created);
+  return created;
+}
+
+const sessionId = resolveSessionId();
+let lastMeta = { source: '', provider: '', providerLabel: '', model: '', updatedAt: '' };
+
 let messages = [{ role: 'assistant', content: initialAssistantMessage }];
 let summary = { ...defaultSummary };
+let patientInputs = [];
 let loading = false;
 let emergencyShown = false;
 let activeDoctorDepartment = '';
@@ -58,6 +122,12 @@ const bookingModalHint = document.getElementById('bookingModalHint');
 const departmentPicker = document.getElementById('departmentPicker');
 const doctorList = document.getElementById('doctorList');
 const summaryScroll = document.getElementById('summaryScroll');
+const sessionStatus = document.getElementById('sessionStatus');
+const streamStatus = document.getElementById('streamStatus');
+const openDoctorLink = document.getElementById('openDoctorLink');
+const openPatientLink = document.getElementById('openPatientLink');
+const patientInputsList = document.getElementById('patientInputs');
+const patientInputsMeta = document.getElementById('patientInputsMeta');
 
 const bookingPriority = document.getElementById('bookingPriority');
 const bookingDate = document.getElementById('bookingDate');
@@ -86,6 +156,50 @@ const fields = {
   allergyHistory: document.getElementById('allergyHistory'),
   medicationHistory: document.getElementById('medicationHistory'),
 };
+
+const hasChat = Boolean(chatWindow && messageInput && sendBtn);
+const hasSummary = Boolean(fields.chiefComplaint && fields.triageBadge);
+const shouldStreamSummary = hasSummary && !hasChat;
+
+function renderPatientInputs() {
+  if (!patientInputsList) return;
+  patientInputsList.innerHTML = '';
+
+  const items = Array.isArray(patientInputs) ? patientInputs : [];
+  if (patientInputsMeta) {
+    patientInputsMeta.textContent = items.length ? `共 ${items.length} 条` : '等待输入';
+  }
+
+  if (!items.length) {
+    patientInputsList.classList.add('empty-list');
+    const li = document.createElement('li');
+    li.textContent = '等待患者输入';
+    patientInputsList.appendChild(li);
+    return;
+  }
+
+  patientInputsList.classList.remove('empty-list');
+  items.forEach((entry, index) => {
+    const text = entry && typeof entry === 'object' ? String(entry.text || '').trim() : String(entry || '').trim();
+    const hasImage = Boolean(entry && typeof entry === 'object' && entry.hasImage);
+    if (!text) return;
+
+    const li = document.createElement('li');
+    li.className = 'patient-input-item';
+
+    const meta = document.createElement('div');
+    meta.className = 'patient-input-meta';
+    meta.textContent = hasImage ? `#${index + 1} · 含图片` : `#${index + 1}`;
+
+    const body = document.createElement('div');
+    body.className = 'patient-input-text';
+    body.textContent = text;
+
+    li.appendChild(meta);
+    li.appendChild(body);
+    patientInputsList.appendChild(li);
+  });
+}
 
 function nowTime() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -148,6 +262,7 @@ function pushMessage(role, content, apiContent = null) {
 }
 
 function setProviderStatus() {
+  if (!(providerSelect && providerStatus)) return;
   const provider = providerSelect.value;
   const text = {
     doubao: '当前使用豆包通道，适合演示实时摘要与影像上传。',
@@ -158,10 +273,14 @@ function setProviderStatus() {
 }
 
 function renderMessages() {
+  if (!chatWindow) return;
+
+  const template = document.getElementById('messageTemplate');
+  if (!template) return;
+
   chatWindow.innerHTML = '';
 
   messages.forEach((message) => {
-    const template = document.getElementById('messageTemplate');
     const node = template.content.cloneNode(true);
     const row = node.querySelector('.message-row');
     const avatar = node.querySelector('.avatar');
@@ -196,6 +315,7 @@ function renderMessages() {
 }
 
 function renderList(element, items, emptyText) {
+  if (!element) return;
   element.innerHTML = '';
   const list = items && items.length ? items : [emptyText];
   list.forEach((item) => {
@@ -207,11 +327,15 @@ function renderList(element, items, emptyText) {
 }
 
 function renderMissingList(items) {
+  if (!fields.missingInformation) return;
+
   fields.missingInformation.innerHTML = '';
   if (!(items && items.length)) {
     renderList(fields.missingInformation, [], '无');
     return;
   }
+
+  const canQuickFill = hasChat;
 
   items.forEach((item) => {
     const li = document.createElement('li');
@@ -224,21 +348,36 @@ function renderMissingList(items) {
     const actions = document.createElement('div');
     actions.className = 'missing-actions';
 
-    quickReplyCandidates(item).forEach((candidate) => {
-      const btn = document.createElement('button');
-      btn.className = 'quick-fill-btn';
-      btn.textContent = candidate;
-      btn.addEventListener('click', () => sendMessage(candidate));
-      actions.appendChild(btn);
-    });
+    if (canQuickFill) {
+      quickReplyCandidates(item).forEach((candidate) => {
+        const btn = document.createElement('button');
+        btn.className = 'quick-fill-btn';
+        btn.textContent = candidate;
+        btn.addEventListener('click', () => sendMessage(candidate));
+        actions.appendChild(btn);
+      });
 
-    if (actions.children.length) li.appendChild(actions);
+      if (actions.children.length) li.appendChild(actions);
+    }
     fields.missingInformation.appendChild(li);
   });
   fields.missingInformation.classList.remove('empty-list');
 }
 
 function renderDepartmentProfile(profile, department) {
+  if (
+    !(
+      departmentOverview &&
+      departmentLocation &&
+      departmentTag &&
+      departmentWaitTime &&
+      departmentServices &&
+      departmentTips
+    )
+  ) {
+    return;
+  }
+
   const hasDepartment = hasConfirmedDepartment(department);
   const safeProfile = profile && typeof profile === 'object' ? profile : {};
   const location = safeProfile.location || '门诊分诊台';
@@ -254,6 +393,7 @@ function renderDepartmentProfile(profile, department) {
 }
 
 function renderDepartmentPicker() {
+  if (!departmentPicker) return;
   departmentPicker.innerHTML = '';
   if (!departmentCatalog.length) {
     departmentPicker.innerHTML = '<div class="doctor-state-card">暂无诊室数据</div>';
@@ -275,10 +415,12 @@ function renderDepartmentPicker() {
 }
 
 function resetDoctorList(message = '点击左侧诊室卡片查看当日可挂医生。') {
+  if (!doctorList) return;
   doctorList.innerHTML = `<div class="doctor-state-card">${escapeHtml(message)}</div>`;
 }
 
 function renderDoctorAvailability(doctors, date, department) {
+  if (!doctorList) return;
   if (!doctors || !doctors.length) {
     resetDoctorList('当前没有可展示的号源信息。');
     return;
@@ -326,6 +468,7 @@ function renderDoctorAvailability(doctors, date, department) {
 }
 
 function updateBookingPanel() {
+  if (!(bookingPriority && bookingDate && bookingHint && registerBtn)) return;
   const department = summary.recommendedDepartment || '待判断';
   const priority = summary.triagePriority || '待判断';
   const hasDepartment = hasConfirmedDepartment(department);
@@ -347,15 +490,18 @@ function updateBookingPanel() {
 }
 
 function renderSummary() {
-  fields.imageFindings.textContent = summary.imageFindings || '未提供影像';
-  fields.chiefComplaint.textContent = summary.chiefComplaint || '待补充';
-  fields.duration.textContent = summary.duration || '待补充';
-  fields.recommendedDepartment.textContent = summary.recommendedDepartment || '待判断';
-  fields.departmentReason.textContent = summary.departmentReason || '待补充';
-  fields.triagePriority.textContent = summary.triagePriority || '待判断';
-  fields.doctorSummary.textContent = summary.doctorSummary || '患者信息尚未完善，等待对话开始。';
-  fields.allergyHistory.textContent = summary.allergyHistory || '待补充';
-  fields.medicationHistory.textContent = summary.medicationHistory || '待补充';
+  if (!hasSummary) return;
+  if (fields.imageFindings) fields.imageFindings.textContent = summary.imageFindings || '未提供影像';
+  if (fields.chiefComplaint) fields.chiefComplaint.textContent = summary.chiefComplaint || '待补充';
+  if (fields.duration) fields.duration.textContent = summary.duration || '待补充';
+  if (fields.recommendedDepartment) fields.recommendedDepartment.textContent = summary.recommendedDepartment || '待判断';
+  if (fields.departmentReason) fields.departmentReason.textContent = summary.departmentReason || '待补充';
+  if (fields.triagePriority) fields.triagePriority.textContent = summary.triagePriority || '待判断';
+  if (fields.doctorSummary) {
+    fields.doctorSummary.textContent = summary.doctorSummary || '患者信息尚未完善，等待对话开始。';
+  }
+  if (fields.allergyHistory) fields.allergyHistory.textContent = summary.allergyHistory || '待补充';
+  if (fields.medicationHistory) fields.medicationHistory.textContent = summary.medicationHistory || '待补充';
 
   const badge = fields.triageBadge;
   badge.textContent = summary.triagePriority || '待判断';
@@ -374,8 +520,9 @@ function renderSummary() {
 }
 
 async function sendMessage(text) {
+  if (!hasChat) return;
   const content = (text || messageInput.value || '').trim();
-  const file = imageInput.files[0];
+  const file = imageInput && imageInput.files ? imageInput.files[0] : null;
 
   if (!content && !file) return;
   if (loading) return;
@@ -399,7 +546,7 @@ async function sendMessage(text) {
   pushMessage('user', displayMessage, apiContent);
   messageInput.value = '';
   loading = true;
-  sendBtn.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
   renderMessages();
 
   try {
@@ -408,11 +555,13 @@ async function sendMessage(text) {
       content: message.apiContent || message.content,
     }));
 
+    const provider = providerSelect ? providerSelect.value : 'doubao';
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        provider: providerSelect.value,
+        sessionId,
+        provider,
         messages: apiMessages,
       }),
     });
@@ -421,6 +570,13 @@ async function sendMessage(text) {
     if (!response.ok) throw new Error(data.error || '请求失败');
 
     summary = { ...defaultSummary, ...data.summary };
+    lastMeta = {
+      source: data.source || lastMeta.source,
+      provider: data.provider || provider || lastMeta.provider,
+      providerLabel: data.providerLabel || providerLabels[data.provider] || lastMeta.providerLabel,
+      model: data.model || lastMeta.model,
+      updatedAt: data.updatedAt || lastMeta.updatedAt,
+    };
     pushMessage('assistant', data.reply || '我已帮你整理好摘要。');
     clearImageSelection();
 
@@ -438,22 +594,23 @@ async function sendMessage(text) {
     showToast(error.message);
   } finally {
     loading = false;
-    sendBtn.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
     renderMessages();
     renderSummary();
-    messageInput.focus();
+    if (messageInput) messageInput.focus();
   }
 }
 
 function clearImageSelection() {
-  imageInput.value = '';
-  imagePreview.src = '';
-  imagePreviewContainer.hidden = true;
+  if (imageInput) imageInput.value = '';
+  if (imagePreview) imagePreview.src = '';
+  if (imagePreviewContainer) imagePreviewContainer.hidden = true;
 }
 
-function resetConversation() {
-  messages = [{ role: 'assistant', content: initialAssistantMessage, time: nowTime() }];
+function resetConversation({ broadcast = false } = {}) {
+  messages = hasChat ? [{ role: 'assistant', content: initialAssistantMessage, time: nowTime() }] : [];
   summary = { ...defaultSummary };
+  patientInputs = [];
   loading = false;
   emergencyShown = false;
   activeDoctorDepartment = '';
@@ -463,9 +620,16 @@ function resetConversation() {
   resetDoctorList();
   renderMessages();
   renderSummary();
+  renderPatientInputs();
   clearImageSelection();
-  messageInput.value = '';
-  messageInput.focus();
+  if (messageInput) {
+    messageInput.value = '';
+    messageInput.focus();
+  }
+
+  if (broadcast) {
+    fetch(`/api/sessions/${encodeURIComponent(sessionId)}/reset`, { method: 'POST' }).catch(() => {});
+  }
 }
 
 function buildSummaryText() {
@@ -544,10 +708,14 @@ function downloadBlob(blob, filename) {
 }
 
 function downloadSummary() {
+  const provider = (providerSelect && providerSelect.value) || lastMeta.provider || 'unknown';
+  const providerLabel =
+    (providerSelect && providerLabels[providerSelect.value]) || lastMeta.providerLabel || providerLabels[provider] || provider;
   const payload = {
     exportedAt: new Date().toISOString(),
-    provider: providerSelect.value,
-    providerLabel: providerLabels[providerSelect.value],
+    provider,
+    providerLabel,
+    meta: lastMeta,
     summary,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -621,10 +789,12 @@ async function exportSummaryPdf() {
 }
 
 function openModal(element) {
+  if (!element) return;
   element.hidden = false;
 }
 
 function closeModal(element) {
+  if (!element) return;
   element.hidden = true;
 }
 
@@ -643,6 +813,7 @@ async function loadDoctorAvailability({ silent = false } = {}) {
     return;
   }
 
+  if (!doctorList) return;
   doctorList.innerHTML = '<div class="doctor-state-card">正在加载当日医生号源...</div>';
 
   try {
@@ -656,9 +827,11 @@ async function loadDoctorAvailability({ silent = false } = {}) {
       summary = { ...summary, departmentProfile: data.departmentProfile };
       renderDepartmentProfile(summary.departmentProfile, department);
     }
-    bookingDate.textContent = activeDoctorDate;
-    bookingModalTitle.textContent = `${department} · 推荐科室与当日号源`;
-    bookingModalHint.textContent = `当前展示 ${department} 的接诊信息与当日可挂医生，你也可以切换左侧其他诊室。`;
+    if (bookingDate) bookingDate.textContent = activeDoctorDate;
+    if (bookingModalTitle) bookingModalTitle.textContent = `${department} · 推荐科室与当日号源`;
+    if (bookingModalHint) {
+      bookingModalHint.textContent = `当前展示 ${department} 的接诊信息与当日可挂医生，你也可以切换左侧其他诊室。`;
+    }
     renderDoctorAvailability(data.doctors, activeDoctorDate, department);
     renderDepartmentPicker();
 
@@ -677,6 +850,11 @@ async function openBookingWorkspace(preferredDepartment = '') {
   const targetDepartment = preferredDepartment || summary.recommendedDepartment;
   if (!hasConfirmedDepartment(targetDepartment)) {
     showToast('请先完成分诊再进入挂号界面');
+    return;
+  }
+
+  if (!(bookingModal && bookingPriority && bookingHint)) {
+    showToast('当前页面未启用挂号工作台');
     return;
   }
 
@@ -746,6 +924,7 @@ function showToast(text) {
 }
 
 function lockWheelToContainer(container) {
+  if (!container) return;
   container.addEventListener(
     'wheel',
     (event) => {
@@ -758,34 +937,125 @@ function lockWheelToContainer(container) {
   );
 }
 
-uploadBtn.addEventListener('click', () => imageInput.click());
+function initSessionUI() {
+  if (sessionStatus) {
+    sessionStatus.textContent = `会话：${sessionId}`;
+  }
+  if (openDoctorLink) {
+    openDoctorLink.href = `/doctor?session=${encodeURIComponent(sessionId)}`;
+  }
+  if (openPatientLink) {
+    openPatientLink.href = `/patient?session=${encodeURIComponent(sessionId)}`;
+  }
+  if (streamStatus && shouldStreamSummary) {
+    streamStatus.textContent = '实时连接：未连接';
+  }
+}
 
-imageInput.addEventListener('change', () => {
-  if (imageInput.files && imageInput.files[0]) {
-    imagePreview.src = URL.createObjectURL(imageInput.files[0]);
-    imagePreviewContainer.hidden = false;
-    if (providerSelect.value === 'deepseek') {
+function setStreamStatus(text) {
+  if (!streamStatus) return;
+  streamStatus.textContent = text;
+}
+
+function applySessionPayload(payload) {
+  if (!payload || typeof payload !== 'object') return;
+
+  if (payload.summary && typeof payload.summary === 'object') {
+    summary = { ...defaultSummary, ...payload.summary };
+  }
+
+  if (payload.meta && typeof payload.meta === 'object') {
+    lastMeta = {
+      ...lastMeta,
+      ...payload.meta,
+      updatedAt: payload.updatedAt || lastMeta.updatedAt,
+    };
+  } else if (payload.updatedAt) {
+    lastMeta = { ...lastMeta, updatedAt: payload.updatedAt };
+  }
+
+  if (Array.isArray(payload.patientInputs)) {
+    patientInputs = payload.patientInputs;
+  }
+
+  renderSummary();
+  renderPatientInputs();
+
+  if (summary.triagePriority === '紧急' && !emergencyShown) {
+    emergencyShown = true;
+    openModal(emergencyModal);
+  }
+}
+
+function startSummaryStream() {
+  if (!shouldStreamSummary) return;
+  if (typeof EventSource === 'undefined') {
+    setStreamStatus('实时连接：浏览器不支持 SSE');
+    return;
+  }
+
+  setStreamStatus('实时连接：连接中...');
+  const source = new EventSource(`/api/sessions/${encodeURIComponent(sessionId)}/stream`);
+
+  source.onopen = () => setStreamStatus('实时连接：已连接');
+  source.onerror = () => {
+    if (source.readyState === EventSource.CLOSED) {
+      setStreamStatus('实时连接：已断开');
+      return;
+    }
+    setStreamStatus('实时连接：重连中...');
+  };
+
+  const handle = (event, { reset = false } = {}) => {
+    let payload = null;
+    try {
+      payload = JSON.parse(event.data);
+    } catch (error) {
+      payload = null;
+    }
+
+    if (reset) resetConversation();
+    applySessionPayload(payload);
+  };
+
+  source.addEventListener('state', (event) => handle(event));
+  source.addEventListener('update', (event) => handle(event));
+  source.addEventListener('reset', (event) => handle(event, { reset: true }));
+}
+
+if (uploadBtn && imageInput) {
+  uploadBtn.addEventListener('click', () => imageInput.click());
+}
+
+if (imageInput) {
+  imageInput.addEventListener('change', () => {
+    if (!(imageInput.files && imageInput.files[0])) return;
+    if (imagePreview) imagePreview.src = URL.createObjectURL(imageInput.files[0]);
+    if (imagePreviewContainer) imagePreviewContainer.hidden = false;
+    if (providerSelect && providerSelect.value === 'deepseek') {
       showToast('DeepSeek 当前按文本模式处理，若需要看图可切换到豆包。');
     }
-  }
-});
+  });
+}
 
-clearImageBtn.addEventListener('click', clearImageSelection);
-sendBtn.addEventListener('click', () => sendMessage());
-resetBtn.addEventListener('click', resetConversation);
-copyBtn.addEventListener('click', copySummary);
-downloadBtn.addEventListener('click', downloadSummary);
-pdfBtn.addEventListener('click', exportSummaryPdf);
-registerBtn.addEventListener('click', () => openBookingWorkspace());
-emergencyCloseBtn.addEventListener('click', () => closeModal(emergencyModal));
-bookingCloseBtn.addEventListener('click', () => closeModal(bookingModal));
+if (clearImageBtn) clearImageBtn.addEventListener('click', clearImageSelection);
+if (sendBtn) sendBtn.addEventListener('click', () => sendMessage());
+if (resetBtn) resetBtn.addEventListener('click', () => resetConversation({ broadcast: true }));
+if (copyBtn) copyBtn.addEventListener('click', copySummary);
+if (downloadBtn) downloadBtn.addEventListener('click', downloadSummary);
+if (pdfBtn) pdfBtn.addEventListener('click', exportSummaryPdf);
+if (registerBtn) registerBtn.addEventListener('click', () => openBookingWorkspace());
+if (emergencyCloseBtn) emergencyCloseBtn.addEventListener('click', () => closeModal(emergencyModal));
+if (bookingCloseBtn) bookingCloseBtn.addEventListener('click', () => closeModal(bookingModal));
 
-messageInput.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    sendMessage();
-  }
-});
+if (messageInput) {
+  messageInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
+  });
+}
 
 sampleButtons.forEach((button) => {
   button.addEventListener('click', () => {
@@ -794,11 +1064,15 @@ sampleButtons.forEach((button) => {
   });
 });
 
-providerSelect.addEventListener('change', () => {
-  setProviderStatus();
-  showToast(`已切换到 ${providerLabels[providerSelect.value] || '新模型'} 通道`);
-});
+if (providerSelect) {
+  providerSelect.addEventListener('change', () => {
+    setProviderStatus();
+    showToast(`已切换到 ${providerLabels[providerSelect.value] || '新模型'} 通道`);
+  });
+}
 
 lockWheelToContainer(summaryScroll);
+initSessionUI();
 setProviderStatus();
 resetConversation();
+startSummaryStream();

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>医生端 · 分诊摘要看板</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="ambient ambient-left"></div>
+  <div class="ambient ambient-right"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Medical AI Demo</p>
+        <h1>医生端 · 实时结构化摘要</h1>
+        <p class="subtitle">本页会实时接收患者端提交的问诊信息，并更新结构化病历摘要与分诊建议。</p>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="control-stack">
+          <div class="status-pill" id="sessionStatus">会话：--</div>
+          <div class="status-pill" id="streamStatus">实时连接：--</div>
+        </div>
+        <a class="secondary-btn" id="openPatientLink" href="/patient" target="_blank" rel="noopener">打开患者端</a>
+      </div>
+    </header>
+
+    <main class="main-grid single">
+      <section class="panel panel-summary">
+        <div class="panel-header summary-header">
+          <div>
+            <h2>结构化病历摘要</h2>
+            <p>每轮对话后自动更新，展示“自由对话 → 医疗结构化信息 → 模拟挂号”闭环。</p>
+          </div>
+          <div class="summary-actions">
+            <button class="secondary-btn" id="copyBtn">复制摘要</button>
+            <button class="secondary-btn" id="downloadBtn">下载 JSON</button>
+            <button class="secondary-btn" id="pdfBtn">导出 PDF</button>
+          </div>
+        </div>
+
+        <article class="doctor-summary-card doctor-summary-top">
+          <div class="card-title-row">
+            <h3>接诊前摘要</h3>
+            <span class="card-hint">实时更新</span>
+          </div>
+          <p id="doctorSummary" class="doctor-summary-text">患者信息尚未完善，等待对话开始。</p>
+        </article>
+
+        <div class="summary-scroll" id="summaryScroll">
+          <div class="summary-grid">
+            <article class="summary-card emphasis-card">
+              <span class="label">主诉</span>
+              <p class="value" id="chiefComplaint">待补充</p>
+            </article>
+
+            <article class="summary-card">
+              <span class="label">症状持续时间</span>
+              <p class="value" id="duration">待补充</p>
+            </article>
+
+            <article class="summary-card department-card">
+              <span class="label">推荐科室</span>
+              <p class="value" id="recommendedDepartment">待判断</p>
+              <p class="sub-value" id="departmentReason">待补充</p>
+            </article>
+
+            <article class="summary-card triage-card">
+              <span class="label">就诊优先级</span>
+              <p class="value" id="triagePriority">待判断</p>
+              <span class="triage-badge neutral" id="triageBadge">待判断</span>
+            </article>
+          </div>
+
+          <details class="accordion-card" open>
+            <summary class="accordion-toggle">
+              <span>症状与风险信号</span>
+              <span class="accordion-meta">点击折叠</span>
+            </summary>
+            <div class="accordion-content">
+              <div class="summary-columns three-col">
+                <article class="list-card">
+                  <div class="card-title-row">
+                    <h3>伴随症状</h3>
+                  </div>
+                  <ul id="accompanyingSymptoms" class="chip-list empty-list"><li>待补充</li></ul>
+                </article>
+
+                <article class="list-card alert-card">
+                  <div class="card-title-row">
+                    <h3>红旗征象</h3>
+                  </div>
+                  <ul id="redFlags" class="chip-list empty-list"><li>暂未识别</li></ul>
+                </article>
+
+                <article class="list-card warning-card">
+                  <div class="card-title-row">
+                    <h3>信息一致性提醒</h3>
+                  </div>
+                  <ul id="consistencyAlerts" class="chip-list empty-list"><li>暂无</li></ul>
+                </article>
+              </div>
+            </div>
+          </details>
+
+          <details class="accordion-card" open>
+            <summary class="accordion-toggle">
+              <span>病史与补充信息</span>
+              <span class="accordion-meta">点击折叠</span>
+            </summary>
+            <div class="accordion-content">
+              <article class="summary-card summary-single-card">
+                <span class="label">影像/检查所见</span>
+                <p class="plain-text-value" id="imageFindings">未提供影像</p>
+              </article>
+
+              <div class="summary-columns three-col">
+                <article class="list-card">
+                  <div class="card-title-row"><h3>既往史</h3></div>
+                  <ul id="pastHistory" class="chip-list empty-list"><li>待补充</li></ul>
+                </article>
+
+                <article class="summary-card">
+                  <span class="label">过敏史</span>
+                  <p class="plain-text-value" id="allergyHistory">待补充</p>
+                </article>
+
+                <article class="summary-card">
+                  <span class="label">近期用药史</span>
+                  <p class="plain-text-value" id="medicationHistory">待补充</p>
+                </article>
+              </div>
+
+              <article class="list-card missing-card">
+                <div class="card-title-row">
+                  <h3>仍待补充信息</h3>
+                  <span class="card-hint">来自患者端输入</span>
+                </div>
+                <ul id="missingInformation" class="chip-list empty-list"><li>等待患者输入</li></ul>
+              </article>
+            </div>
+          </details>
+
+          <details class="accordion-card" open>
+            <summary class="accordion-toggle">
+              <span>患者输入记录</span>
+              <span class="accordion-meta" id="patientInputsMeta">等待输入</span>
+            </summary>
+            <div class="accordion-content">
+              <ul id="patientInputs" class="patient-input-list empty-list"><li>等待患者输入</li></ul>
+            </div>
+          </details>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="emergencyModal" class="modal" hidden>
+    <div class="modal-card emergency">
+      <h3>可能存在紧急风险</h3>
+      <p>系统识别到紧急信号，建议优先急诊评估。若症状持续加重，请立即前往急诊或拨打 120。</p>
+      <button class="primary-btn" id="emergencyCloseBtn">我知道了</button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

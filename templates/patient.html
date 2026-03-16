@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>患者端 · 门诊预问诊 Demo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="ambient ambient-left"></div>
+  <div class="ambient ambient-right"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Medical AI Demo</p>
+        <h1>患者端 · 预问诊对话</h1>
+        <p class="subtitle">在本页输入患者描述，系统会实时整理分诊摘要，并推送到医生端页面。</p>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="control-stack">
+          <label class="mode-switch">
+            <span>模型通道</span>
+            <select id="providerSelect">
+              <option value="doubao">豆包</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="mock">Mock 规则引擎</option>
+            </select>
+          </label>
+          <div class="status-pill" id="providerStatus">当前默认使用豆包进行实时整理</div>
+          <div class="status-pill" id="sessionStatus">会话：--</div>
+        </div>
+
+        <a class="secondary-btn" id="openDoctorLink" href="/doctor" target="_blank" rel="noopener">打开医生端</a>
+        <button class="secondary-btn" id="resetBtn">重置会话</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="panel panel-chat">
+        <div class="panel-header">
+          <div>
+            <h2>患者对话区</h2>
+            <p>模拟挂号前的预问诊过程，系统会持续追问关键信息并生成医生侧摘要。</p>
+          </div>
+          <div class="sample-group">
+            <button class="sample-btn" data-message="我发烧咳嗽三天了，喉咙也有点痛。">发热咳嗽案例</button>
+            <button class="sample-btn" data-message="我这两天一直肚子疼，还想吐，走路都会痛。">腹痛案例</button>
+            <button class="sample-btn" data-message="我刚刚突然胸口痛，还喘不上气。">胸痛案例</button>
+          </div>
+        </div>
+
+        <div class="chat-window" id="chatWindow"></div>
+
+        <div class="composer">
+          <div id="imagePreviewContainer" class="image-preview-card" hidden>
+            <img id="imagePreview" src="" alt="预览" class="image-preview" />
+            <div class="image-preview-meta">
+              <span>已添加影像资料</span>
+              <button class="ghost-btn" id="clearImageBtn">移除</button>
+            </div>
+          </div>
+
+          <textarea id="messageInput" rows="3" placeholder="请输入患者描述，例如：我发烧咳嗽三天了，最高 38.5 度。"></textarea>
+
+          <div class="composer-actions">
+            <div class="composer-left">
+              <input type="file" id="imageInput" accept="image/*" hidden />
+              <button class="secondary-btn" id="uploadBtn">上传图片</button>
+              <span class="tip">Enter 发送，Shift + Enter 换行</span>
+            </div>
+            <button class="primary-btn" id="sendBtn">发送</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel-summary">
+        <div class="panel-header summary-header">
+          <div>
+            <h2>结构化病历摘要</h2>
+            <p>每轮对话后自动更新，给出推荐科室与就诊优先级提示（演示版本，不替代医生诊断）。</p>
+          </div>
+          <div class="summary-actions">
+            <button class="secondary-btn" id="copyBtn">复制摘要</button>
+            <button class="secondary-btn" id="downloadBtn">下载 JSON</button>
+            <button class="secondary-btn" id="pdfBtn">导出 PDF</button>
+          </div>
+        </div>
+
+        <div class="summary-scroll" id="summaryScroll">
+          <div class="summary-grid">
+            <article class="summary-card emphasis-card">
+              <span class="label">主诉</span>
+              <p class="value" id="chiefComplaint">待补充</p>
+            </article>
+
+            <article class="summary-card">
+              <span class="label">症状持续时间</span>
+              <p class="value" id="duration">待补充</p>
+            </article>
+
+            <article class="summary-card department-card">
+              <span class="label">推荐科室</span>
+              <p class="value" id="recommendedDepartment">待判断</p>
+              <p class="sub-value" id="departmentReason">待补充</p>
+              <button class="primary-btn register-btn inline-register-btn" id="registerBtn" disabled>查看科室与挂号</button>
+            </article>
+
+            <article class="summary-card triage-card">
+              <span class="label">就诊优先级</span>
+              <p class="value" id="triagePriority">待判断</p>
+              <span class="triage-badge neutral" id="triageBadge">待判断</span>
+            </article>
+          </div>
+
+          <details class="accordion-card" open>
+            <summary class="accordion-toggle">
+              <span>症状与风险信号</span>
+              <span class="accordion-meta">点击折叠</span>
+            </summary>
+            <div class="accordion-content">
+              <div class="summary-columns three-col">
+                <article class="list-card">
+                  <div class="card-title-row">
+                    <h3>伴随症状</h3>
+                  </div>
+                  <ul id="accompanyingSymptoms" class="chip-list empty-list"><li>待补充</li></ul>
+                </article>
+
+                <article class="list-card alert-card">
+                  <div class="card-title-row">
+                    <h3>红旗征象</h3>
+                  </div>
+                  <ul id="redFlags" class="chip-list empty-list"><li>暂未识别</li></ul>
+                </article>
+
+                <article class="list-card warning-card">
+                  <div class="card-title-row">
+                    <h3>信息一致性提醒</h3>
+                  </div>
+                  <ul id="consistencyAlerts" class="chip-list empty-list"><li>暂无</li></ul>
+                </article>
+              </div>
+            </div>
+          </details>
+
+          <details class="accordion-card" open>
+            <summary class="accordion-toggle">
+              <span>病史与补充信息</span>
+              <span class="accordion-meta">点击折叠</span>
+            </summary>
+            <div class="accordion-content">
+              <article class="summary-card summary-single-card">
+                <span class="label">影像/检查所见</span>
+                <p class="plain-text-value" id="imageFindings">未提供影像</p>
+              </article>
+
+              <div class="summary-columns three-col">
+                <article class="list-card">
+                  <div class="card-title-row"><h3>既往史</h3></div>
+                  <ul id="pastHistory" class="chip-list empty-list"><li>待补充</li></ul>
+                </article>
+
+                <article class="summary-card">
+                  <span class="label">过敏史</span>
+                  <p class="plain-text-value" id="allergyHistory">待补充</p>
+                </article>
+
+                <article class="summary-card">
+                  <span class="label">近期用药史</span>
+                  <p class="plain-text-value" id="medicationHistory">待补充</p>
+                </article>
+              </div>
+
+              <article class="list-card missing-card">
+                <div class="card-title-row">
+                  <h3>仍待补充信息</h3>
+                  <span class="card-hint">可点击快捷补全</span>
+                </div>
+                <ul id="missingInformation" class="chip-list empty-list"><li>等待患者输入</li></ul>
+              </article>
+            </div>
+          </details>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="emergencyModal" class="modal" hidden>
+    <div class="modal-card emergency">
+      <h3>可能存在紧急风险</h3>
+      <p>系统识别到紧急信号，建议优先急诊评估。若症状持续加重，请立即前往急诊或拨打 120。</p>
+      <button class="primary-btn" id="emergencyCloseBtn">我知道了</button>
+    </div>
+  </div>
+
+  <div id="bookingModal" class="modal booking-modal" hidden>
+    <div class="modal-card booking-modal-card">
+      <div class="booking-modal-head">
+        <div>
+          <p class="section-tag">模拟挂号工作台</p>
+          <h3 id="bookingModalTitle">推荐科室与当日号源</h3>
+          <p id="bookingModalHint" class="card-hint">点击下方诊室卡片，可切换查看不同科室的医生排班。</p>
+        </div>
+        <button class="secondary-btn" id="bookingCloseBtn">关闭</button>
+      </div>
+
+      <div class="booking-modal-grid">
+        <aside class="booking-sidebar">
+          <div class="booking-priority-card">
+            <span class="mini-label">分诊优先级</span>
+            <strong id="bookingPriority">待判断</strong>
+            <p id="bookingHint" class="booking-hint">完成分诊后，可查看推荐科室与当日号源。</p>
+          </div>
+          <div id="departmentPicker" class="department-picker"></div>
+        </aside>
+
+        <section class="booking-stage">
+          <article class="department-insight-card booking-insight-card">
+            <div class="card-title-row">
+              <div>
+                <h3 id="departmentLocation">待判断</h3>
+                <p class="card-hint" id="departmentOverview">完成分诊后，将展示推荐科室的接诊范围与就诊提示。</p>
+              </div>
+              <span class="department-location" id="departmentTag">待判断</span>
+            </div>
+            <div class="department-metrics">
+              <div class="department-metric">
+                <span>候诊参考</span>
+                <strong id="departmentWaitTime">--</strong>
+              </div>
+              <div class="department-metric">
+                <span>今日日期</span>
+                <strong id="bookingDate">--</strong>
+              </div>
+            </div>
+            <div class="department-block">
+              <span class="mini-label">接诊范围</span>
+              <ul id="departmentServices" class="chip-list empty-list"><li>等待分诊结果</li></ul>
+            </div>
+            <div class="department-block">
+              <span class="mini-label">就诊提示</span>
+              <ul id="departmentTips" class="chip-list empty-list"><li>完成分诊后更新</li></ul>
+            </div>
+          </article>
+
+          <div id="doctorList" class="doctor-list">
+            <div class="doctor-state-card">点击左侧诊室卡片查看当日可挂医生。</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <template id="messageTemplate">
+    <div class="message-row">
+      <div class="avatar"></div>
+      <div class="bubble"></div>
+    </div>
+  </template>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

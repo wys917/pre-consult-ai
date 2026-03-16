@@ -4,15 +4,140 @@ import os
 import re
 import uuid
 from datetime import datetime
-from typing import Dict, List, Tuple
+from queue import Empty, Full, Queue
+from threading import Lock
+from typing import Dict, List, Optional, Tuple
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, make_response, render_template, request
+from flask import Flask, Response, jsonify, make_response, redirect, render_template, request, stream_with_context, url_for
 
 load_dotenv()
 
 app = Flask(__name__)
+
+DEFAULT_SESSION_ID = "default"
+
+
+def normalize_session_id(value: object) -> str:
+    session_id = str(value or "").strip()
+    if not session_id:
+        return DEFAULT_SESSION_ID
+
+    # Keep it URL-friendly and avoid accidental huge keys.
+    session_id = re.sub(r"[^a-zA-Z0-9_-]+", "", session_id)[:64]
+    return session_id or DEFAULT_SESSION_ID
+
+
+def new_default_summary() -> Dict[str, object]:
+    return {
+        "chiefComplaint": "待补充",
+        "duration": "待补充",
+        "accompanyingSymptoms": [],
+        "redFlags": [],
+        "recommendedDepartment": "待判断",
+        "departmentReason": "待补充",
+        "triagePriority": "待判断",
+        "missingInformation": [],
+        "nextQuestion": "",
+        "doctorSummary": "患者信息尚未完善，等待对话开始。",
+        "pastHistory": [],
+        "allergyHistory": "待补充",
+        "medicationHistory": "待补充",
+        "consistencyAlerts": [],
+        "imageFindings": "未提供影像",
+        "departmentProfile": {},
+    }
+
+
+SESSION_STATES: Dict[str, Dict[str, object]] = {}
+SESSION_SUBSCRIBERS: Dict[str, List[Queue]] = {}
+SESSION_LOCK = Lock()
+
+
+def build_session_payload(
+    session_id: str,
+    *,
+    summary: Optional[Dict[str, object]] = None,
+    meta: Optional[Dict[str, object]] = None,
+    patient_inputs: Optional[List[Dict[str, object]]] = None,
+) -> Dict[str, object]:
+    return {
+        "sessionId": session_id,
+        "summary": summary if isinstance(summary, dict) else new_default_summary(),
+        "meta": meta if isinstance(meta, dict) else {},
+        "patientInputs": patient_inputs if isinstance(patient_inputs, list) else [],
+        "updatedAt": datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+def publish_session_event(session_id: str, event: str, payload: Dict[str, object]) -> None:
+    with SESSION_LOCK:
+        subscribers = list(SESSION_SUBSCRIBERS.get(session_id, []))
+
+    packet = {"event": event, "payload": payload}
+    for subscriber in subscribers:
+        try:
+            subscriber.put_nowait(packet)
+        except Full:
+            # Drop the oldest event to keep the stream fresh.
+            try:
+                subscriber.get_nowait()
+                subscriber.put_nowait(packet)
+            except Exception:  # noqa: BLE001
+                continue
+
+
+def sse_encode(event: str, payload: Dict[str, object]) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def normalize_patient_content(content: object) -> Tuple[str, bool]:
+    if isinstance(content, str):
+        return content.strip(), False
+
+    if isinstance(content, list):
+        texts: List[str] = []
+        has_image = False
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            item_type = str(item.get("type", "")).strip().lower()
+            if item_type == "text":
+                text_part = str(item.get("text", "")).strip()
+                if text_part:
+                    texts.append(text_part)
+            elif item_type in {"image_url", "image"}:
+                has_image = True
+
+        return "\n".join(texts).strip(), has_image
+
+    return str(content).strip(), False
+
+
+def extract_patient_inputs(messages: List[Dict[str, object]]) -> List[Dict[str, object]]:
+    inputs: List[Dict[str, object]] = []
+    for message in messages:
+        if message.get("role") != "user":
+            continue
+
+        text, has_image = normalize_patient_content(message.get("content"))
+        display_text = text
+        if has_image:
+            display_text = f"{text}\n[已上传图片]" if text else "[已上传图片]"
+
+        display_text = display_text.strip()
+        if not display_text:
+            continue
+
+        inputs.append(
+            {
+                "text": display_text[:1200],
+                "hasImage": has_image,
+            }
+        )
+
+    return inputs[-30:]
 
 
 SYMPTOM_PATTERNS: List[Tuple[str, List[str]]] = [
@@ -1175,17 +1300,87 @@ def generate_summary_pdf(summary: Dict[str, object]) -> bytes:
 
 @app.route("/")
 def index():
+    return redirect(url_for("patient_view"))
+
+
+@app.get("/combined")
+def combined_view():
     return render_template("index.html")
+
+
+@app.get("/patient")
+def patient_view():
+    return render_template("patient.html")
+
+
+@app.get("/doctor")
+def doctor_view():
+    return render_template("doctor.html")
+
+
+@app.get("/api/sessions/<session_id>/stream")
+def api_session_stream(session_id: str):
+    session_id = normalize_session_id(session_id)
+    queue: Queue = Queue(maxsize=25)
+
+    with SESSION_LOCK:
+        SESSION_SUBSCRIBERS.setdefault(session_id, []).append(queue)
+        initial = SESSION_STATES.get(session_id) or build_session_payload(session_id)
+
+    def event_stream():
+        try:
+            yield sse_encode("state", initial)
+
+            while True:
+                try:
+                    packet = queue.get(timeout=15)
+                except Empty:
+                    # Keep the connection alive for proxies.
+                    yield ": keep-alive\n\n"
+                    continue
+
+                event = str(packet.get("event", "update"))
+                payload = packet.get("payload")
+                if not isinstance(payload, dict):
+                    continue
+
+                yield sse_encode(event, payload)
+        finally:
+            with SESSION_LOCK:
+                subscribers = SESSION_SUBSCRIBERS.get(session_id, [])
+                if queue in subscribers:
+                    subscribers.remove(queue)
+                if not subscribers:
+                    SESSION_SUBSCRIBERS.pop(session_id, None)
+
+    response = Response(stream_with_context(event_stream()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
+
+
+@app.post("/api/sessions/<session_id>/reset")
+def api_session_reset(session_id: str):
+    session_id = normalize_session_id(session_id)
+    payload = build_session_payload(session_id)
+
+    with SESSION_LOCK:
+        SESSION_STATES[session_id] = payload
+
+    publish_session_event(session_id, "reset", payload)
+    return jsonify({"success": True, **payload})
 
 
 @app.post("/api/chat")
 def api_chat():
     data = request.get_json(silent=True) or {}
     messages = data.get("messages", [])
+    session_id = normalize_session_id(data.get("sessionId"))
     provider = resolve_provider(data)
 
     try:
         messages = validate_messages(messages)
+        patient_inputs = extract_patient_inputs(messages)
 
         if provider == "mock":
             summary = analyze_conversation(messages)
@@ -1199,6 +1394,21 @@ def api_chat():
             provider_label = str(summary.pop("_provider_label", provider))
             summary.pop("_provider", None)
 
+        session_payload = build_session_payload(
+            session_id,
+            summary=summary,
+            meta={
+                "source": source,
+                "provider": provider,
+                "providerLabel": provider_label,
+                "model": model_name,
+            },
+            patient_inputs=patient_inputs,
+        )
+        with SESSION_LOCK:
+            SESSION_STATES[session_id] = session_payload
+        publish_session_event(session_id, "update", session_payload)
+
         reply = build_assistant_reply(summary)
         return jsonify(
             {
@@ -1208,6 +1418,8 @@ def api_chat():
                 "model": model_name,
                 "provider": provider,
                 "providerLabel": provider_label,
+                "sessionId": session_id,
+                "updatedAt": session_payload["updatedAt"],
             }
         )
     except ValueError as exc:
@@ -1293,4 +1505,4 @@ def api_export_pdf():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True, threaded=True)
