@@ -1,0 +1,241 @@
+\documentclass[UTF8,10pt,a4paper,fontset=none]{ctexart}
+
+\usepackage{geometry}
+\geometry{
+  top=18mm,
+  bottom=18mm,
+  left=15mm,
+  right=15mm,
+  footskip=8mm
+}
+
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica Neue}
+\setmonofont{Menlo}
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{Hiragino Sans GB}
+\setCJKmonofont{Songti SC}
+
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{multicol}
+\usepackage{ragged2e}
+\usepackage{titlesec}
+\usepackage{xcolor}
+
+\definecolor{rscblue}{RGB}{12, 55, 114}
+
+\hypersetup{colorlinks=true, linkcolor=rscblue, citecolor=rscblue, urlcolor=rscblue}
+\urlstyle{same}
+\pagestyle{plain}
+
+\DeclareCaptionLabelSeparator{zhcolon}{：\ }
+\captionsetup[figure]{
+  font=small,
+  labelfont={bf,color=rscblue},
+  labelsep=zhcolon,
+  justification=raggedright,
+  singlelinecheck=false,
+  hypcap=false,
+  skip=5pt
+}
+\renewcommand{\figurename}{图}
+
+\titleformat{\section}
+  {\color{rscblue}\sffamily\bfseries\large}
+  {\thesection}
+  {0.5em}
+  {}
+\titleformat{\subsection}
+  {\color{rscblue}\sffamily\bfseries\normalsize}
+  {\thesubsection}
+  {0.5em}
+  {}
+\titlespacing*{\section}{0pt}{1.2em}{0.5em}
+\titlespacing*{\subsection}{0pt}{1.0em}{0.4em}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.3em}
+\setlength{\columnsep}{8mm}
+\linespread{1.15}
+\emergencystretch=1em
+\raggedbottom
+
+\newcommand{\inlinefigure}[3]{%
+  \par\vspace{1.0em}
+  \noindent\begin{minipage}{\linewidth}
+  \centering
+  \includegraphics[width=#2\linewidth]{#1}
+  \captionof{figure}{#3}
+  \end{minipage}
+  \par\vspace{1.0em}
+}
+
+\newcommand{\widefiguretop}[3]{%
+  \end{multicols}
+  \clearpage
+  \noindent\begin{minipage}{\textwidth}
+  \centering
+  \includegraphics[width=#2\textwidth]{#1}
+  \captionof{figure}{#3}
+  \end{minipage}
+  \vspace{0.8em}
+  \begin{multicols}{2}
+  \small
+  \justifying
+}
+
+\newcommand{\widefigurebottom}[3]{%
+  \end{multicols}
+  \vspace*{\fill}
+  \noindent\begin{minipage}{\textwidth}
+  \centering
+  \includegraphics[width=#2\textwidth]{#1}
+  \captionof{figure}{#3}
+  \end{minipage}
+  \clearpage
+  \begin{multicols}{2}
+  \small
+  \justifying
+}
+
+\begin{document}
+
+\begin{center}
+{\color{rscblue}\zihao{3}\sffamily\bfseries 建筑环境功能玻璃的技术演进、工程局限及跨学科破局思考\par}
+\vspace{1.5em}
+{\large \sffamily\textbf{作者:苏易文}\par}
+\vspace{0.5em}
+{\small 浙江大学计算机科学与技术学院\par}
+\vspace{0.5em}
+{\small 学号:3240103466\par}
+\vspace{1.5em}
+{\small 课程:新型功能玻璃 \qquad 教师:杨雨 \qquad 邮箱:3240103466@zju.edu.cn\par}
+\end{center}
+
+\vspace{1.5em}
+
+\begin{center}
+{\color{rscblue}\bfseries\sffamily 摘\quad 要}
+\end{center}
+{\small\justifying\noindent
+\textbf{\color{rscblue}【摘要】}在目前的建筑节能挑战中，透明的玻璃窗一直是造成巨大空调能耗的物理漏洞。为了填补这一漏洞，本文系统梳理了当前建筑环境功能玻璃的三大前沿技术路线：低辐射镀膜、自清洁玻璃以及电致变色智能玻璃。在查阅相关文献后本文发现，尽管学术界在实验室环境下不断刷新透光率、接触角等各项微观性能指标，但当这些精密的材料真正暴露在复杂多变的真实建筑环境中时，往往会面临严峻的工程应用挑战。基于此，本文重点分析了现有技术在实际应用中暴露出的耐久性不足、气候动态适配性差以及大面积调控迟滞等现实痛点，并尝试结合计算机控制与智能算法的视角，探讨如何突破底层纯材料的物理极限，为未来的智能建筑玻璃研究提供跨学科的解决思路。
+\par}
+
+\vspace{0.8em}
+{\small\justifying\noindent
+\textbf{\color{rscblue}【关键词】}建筑节能；Low-E 镀膜；自清洁玻璃；电致变色；微纳结构；材料物理极限
+\par}
+
+\vspace{1.5em}
+
+{\small\justifying\noindent
+\textbf{\color{rscblue}Abstract:} In the face of current building energy-efficiency challenges, transparent glass windows remain a major physical weak point responsible for substantial air-conditioning energy consumption. This paper systematically reviews three frontier technological pathways for functional glass in the built environment: low-emissivity coatings, self-cleaning glass, and electrochromic smart glass. By examining the relevant literature, it finds that although laboratory studies continue to improve microscopic indicators such as transmittance and contact angle, these sophisticated materials often encounter severe engineering challenges once exposed to the complex and variable conditions of real buildings. On this basis, the paper focuses on practical bottlenecks revealed in real applications, including insufficient durability, poor dynamic climate adaptability, and lag in large-area regulation, and further discusses how perspectives from computer control and intelligent algorithms may help overcome the physical limits of purely material-based approaches, thereby offering an interdisciplinary line of thinking for future research on intelligent architectural glass.
+\par}
+
+\vspace{0.8em}
+{\small\justifying\noindent
+\textbf{\color{rscblue}Keywords:} building energy efficiency; Low-E coating; self-cleaning glass; electrochromic glass; micro/nanostructures; physical limits of materials
+\par}
+
+\vspace{1.5em}
+
+\begin{multicols}{2}
+\small
+\justifying
+
+\section{引言}
+
+根据联合国环境规划署发布的《全球建筑建造业状况报告》，建筑部门吞噬了全球约 34\% 的能源需求，并贡献了高达 37\% 的能源与工艺相关二氧化碳排放。这组庞大的数字直观地表明：控制建筑能耗是全社会节能减排的绝对关键议题。在各类工业与民用基础设施中，现代城市密布的高层写字楼与公共设施，每日都在吞噬着惊人的电量。
+
+如果我们将一栋现代摩天大楼视为一个封闭的热力学系统，厚实的钢筋混凝土墙体或岩棉复合墙体构成了这个系统坚固的保温防火墙，能够极其有效地锁住室内的冷暖气。然而，现代建筑为了追求极致的自然采光与视觉交互的通透感，普遍大面积采用透明的玻璃幕墙，这往往成为了整个建筑系统里最大的“热力学黑洞”。
+
+\inlinefigure{tmp/latex_assets/fig1_emissions.png}{1.0}{全球各行业温室气体排放占比。建筑部门的能耗与排放尤为惊人。（图片来源：Our World in Data）}
+
+普通硅酸盐单层或双层中空玻璃的传热系数远高于实体墙，而且由于缺乏对太阳光谱红外波段的阻挡能力，它使得窗户区域顺理成章地成了整栋大楼能量流失最为严重的物理薄弱区。夏天，近红外线轻易穿透大面积采光的玻璃，让室内温度急剧攀升，迫使中央空调必须长时间满负荷运转、消耗巨量电能；冬天，室内耗费巨大能源积攒的暖气，又会顺着单薄的玻璃面迅速向寒冷的室外散失。这种不受控制的剧烈热量交换，不断推高着建筑的日常运营成本。
+
+\inlinefigure{tmp/latex_assets/fig2_thermal.png}{1.0}{建筑立面的红外热成像图。可以清晰地看到窗户区域是建筑最大的“漏热点”。（图片来源：\url{https://www.maesin.co.uk/resources/detecting-the-unseen}）}
+
+从纯粹的工程热力学角度而言，最节能的建筑形态是没有窗户的掩体。然而人类生理与心理的需求决定了我们必须在透光性与热阻隔性之间寻找最佳的平衡。为了彻底解决这一痛点，目前主流的材料学升级路径主要聚焦于三个维度：基础的隔热与保温（Low-E 镀膜）、表面物理化学抗污能力（自清洁涂层）以及按需动态调节的透光与光热控制（电致变色技术）。本文将逐一解剖这三种技术的微观机理，并着重探讨前沿文献中往往被忽视的宏观工程痛点。
+
+\section{Low-E 镀膜玻璃}
+
+\subsection{微观架构}
+
+目前主流的磁控溅射 Low-E（Low Emissivity）镀膜，其本质是一个在纳米尺度上充满了妥协的精密薄膜系统。Schaefer 等人指出，现代高级 Low-E 玻璃普遍采用 D-A-D（介质层-金属层-介质层）的“三明治”交替结构 [1]。
+
+\inlinefigure{tmp/latex_assets/fig3_lowe_structure.png}{0.76}{主流 Low-E 玻璃的 D-A-D 膜层微观结构剖析（图片来源：参考文献 [1]）}
+
+该系统的核心是一层厚度仅约 10 nm 的银（Ag）层。由于银层内部自由电子的等离子体振荡特性，它对波长较长的中远红外线（即室温物体发出的热辐射）具有极高的反射率。在微观层面，这 10 nm 的银层能在不阻挡大部分可见光的前提下，切断辐射传热的路径。
+
+\subsection{多重妥协与双银结构}
+
+理论虽然理想，但在推向实际大楼应用时，材料学家们遇到了两个棘手的工程难题，并且不得不为此在结构上做出让步。
+
+首先是光学层面的矛盾。单层银虽然能挡住红外热量，但对可见光也有很强的反射，直接装在幕墙上不仅采光极差，还会造成严重的光污染。为此，研究人员在银层两侧加上了约 40 纳米厚的氧化锡或氧化锌等高折射率介质层。这就像相机镜头上的增透膜，利用精密的光学薄膜干涉效应，把可见光透射率强行拉回到了 80\% 以上以保证通透。
+
+其次是制造工艺上的挑战。这层 10 纳米的银极其娇弱，在工厂里往它上面镀氧化物介质时，活跃的高能氧等离子体会瞬间摧毁它的导电和光学性能。工程师只能在系统里额外加一层薄至 2 纳米的钛合金或镍铬合金阻挡层。这层金属就如同给银层穿了一件防弹衣，它在生产过程中主动牺牲自己去被氧化，这才保全了核心银层的完好。
+
+后来随着建筑节能标准日益严苛，单层银的性能潜力基本被榨干，双银结构应运而生。它并不是简单地把两层玻璃叠在一起，而是将 8 纳米和 12 纳米的两层银精巧地嵌套在多层介质里。这种设计在光谱上形成了一道极其陡峭的物理屏障，像切豆腐一样极其精准地把带来热量的红外线挡在室外，同时还能维持极高的透光度，将整扇窗的传热系数直接压低到了 1.1 W/m$^2$K 这样夸张的水平。
+
+\inlinefigure{tmp/latex_assets/fig4_spectrum.png}{0.98}{单银与双银结构在太阳光谱和红外光谱下的透射/反射率关系对比（图片来源：参考文献 [1]）}
+
+\section{自清洁玻璃}
+
+针对几百米高玻璃幕墙的高昂清洗成本，自清洁技术应运而生。Xue 等人在近期的综述中，将自清洁玻璃的机理划分为两大截然不同的微观路线 [2]。
+
+\subsection{路线一：光催化超亲水}
+
+该路线以 $TiO_2$ 宽禁带半导体涂层为代表。在太阳光紫外线的激发下，$TiO_2$ 价带电子跃迁至导带，生成高活性的电子-空穴对（$e^-/h^+$）。这些载流子与表面吸附的水和氧气反应，生成极具强氧化性的超氧自由基和羟基自由基（$\cdot OH$）。这些自由基如同微观的“化学剪刀”，能够无差别地切断附着在玻璃表面的鸟粪、油脂等有机污染物的碳链，将其降解为水和二氧化碳。同时，光致氧缺陷使玻璃表面呈现极端的超亲水性，雨水接触后瞬间平铺成水膜，如同刮水刀般将降解后的灰尘冲刷殆尽。
+
+\subsection{路线二：超疏水仿生结构}
+
+第二条路线则是利用刻蚀或纳米组装技术，模仿自然界荷叶效应，在玻璃表面构建微米与纳米交错的粗糙层级结构，并辅以低表面能物质修饰。这就创造了 Wenzel-Cassie 润湿状态：微纳结构的间隙锁住了大量空气，水滴实际上是悬浮在由微纳柱冠部和空气组成的复合气垫上。此时水滴接触角可大于 150$^\circ$，滚动角小于 10$^\circ$，水滴在重力作用下滚落时，会像雪球一样粘附并带走表面灰尘。
+
+\inlinefigure{tmp/latex_assets/fig5_photocatalysis.png}{0.98}{$TiO_2$ 光催化原理与超亲水去污协同作用机理（图片来源：参考文献 [2]）}
+
+\inlinefigure{tmp/latex_assets/fig6_wettability.png}{1.00}{表面粗糙度对水滴状态影响的模型（Wenzel 态与 Wenzel-Cassie 态对比）（图片来源：参考文献 [2]）}
+
+\section{电致变色 (EC) 玻璃}
+
+为了解决 Low-E 玻璃静态遮阳的痛点，电致变色（Electrochromic, EC）智能玻璃成为了或许是解决方案之一。Cannavale 等人详细阐述了 EC 玻璃作为透明电池的工作原理 [3]。
+
+\subsection{互补型全固态双变色系统}
+
+现代高效 EC 玻璃普遍采用基于透明导电氧化物（如 ITO）和 $Li^+$ 离子传输的五层互补型固态器件结构。该系统的精妙之处在于采用了双重变色层：以 $WO_3$ 作为阴极着色层，以 $Ni_{1-x}W_x$（镍钨氧化物）作为阳极着色层兼离子存储层。当施加正向电压时，$Li^+$ 离子在电场驱动下从 $Ni_{1-x}W_x$ 层脱出，穿过固态电解质，注入到 $WO_3$ 晶格中。
+
+\inlinefigure{tmp/latex_assets/fig7_ec.png}{0.86}{互补型全固态电致变色窗（$WO_3/Li^+/NiW$）结构与锂离子迁移机理（图片来源：参考文献 [3]）}
+
+这种迁移诱发了互补着色效应：$WO_3$ 接收离子和电子后被还原为深蓝色；同时 $Ni_{1-x}W_x$ 在失去离子和电子后也被氧化为深色态。两层材料同步变暗，呈指数级提升了整体的光学阻挡密度；反接电压时则同步恢复透明。
+
+\section{结论}
+
+看完了这三种前沿建筑玻璃技术的文献，我最大的一个直观感受是：材料学家们在微观尺度（比如纳米膜、微米结构）上把参数做得越极致，这些材料在真实的宏观建筑上往往就显得越“娇贵”。
+
+比如 Low-E 玻璃和自清洁玻璃，它们在实验室里的数据极其漂亮。为了高效反射红外线，把银层做到了薄薄的 10 纳米；为了让水滴滚落，在表面刻蚀出了极其精细的微纳粗糙结构。但在我看来，这种性能上的“完美”在工程中是非常脆弱的。现实里大楼面临的风吹日晒、酸雨和沙尘，很容易就能把薄膜氧化，或者把微纳结构磨平。一旦这些物理结构被破坏，原本用来“自清洁”的微观凹槽反而会变成无法清理的“藏污纳垢”区。所以我觉得，单纯在实验室里追求把透光率再提高 1\%，或者把接触角再增大 2 度，放在真实的工程服役环境里，可能意义并没有那么大。
+
+再看电致变色（EC）玻璃，它能主动变色，听起来很酷。但文献里也老老实实地指出了它在大面积使用时的“物理瓶颈”：锂离子在固体里面跑得实在太慢了，而且大块玻璃的导电层电阻很大。这就导致变色的时候，玻璃边缘都变黑了，中间还是透明的（也就是文献里说的“光圈效应”）。
+
+面对这些问题，如果我们仅仅停留在传统的材料学思路里——比如继续尝试新的化学配方、寻找导电性稍微好一点的介质——可能很难有质的飞跃了，毕竟物理极限摆在那里。
+
+其实，跳出纯材料的圈子，我们完全可以尝试引入计算机科学中系统控制和算法的思路来解决材料的痛点。比如，对于电致变色玻璃那种变色慢、不均匀的问题，我们是不是可以把一整块大幕墙划分成很多个独立的数字控制矩阵？然后引入基于 AI Agent 的智能算法，让系统实时读取室外的光照强度预测模型和玻璃各区域的电阻情况，动态地给不同区域分配不同的补偿电压。
+
+总而言之，这次文献调研让我意识到，未来的建筑环境功能玻璃研究，必须打破单一学科的壁垒。只有将先进材料制备、真实气候环境模拟测试，乃至结合人工智能的动态系统控制相融合，才能真正修补建筑物上的这个“热力学漏洞”，推动零碳建筑的最终落地
+
+\section*{参考文献}
+
+\begin{enumerate}[leftmargin=1.8em,label={[}\arabic*{]},itemsep=2pt,topsep=4pt,parsep=0pt]
+\item Schaefer C, Bräuer G, Szczyrbowski J. Low emissivity coatings on architectural glass[J]. Surface and Coatings Technology, 1997, 93(1): 37-45.
+\item Xue S, Yang S, Li X, et al. A comprehensive review on self-cleaning glass surfaces: durability, mechanisms, and functional applications[J]. RSC Advances, 2024, 14(46): 34390-34414.
+\item Cannavale, A., Ayr, U., Fiorito, F., \& Martellotta, F. Smart Electrochromic Windows to Enhance Building Energy Efficiency and Visual Comfort. Energies, 2020, 13(6), 1449.
+\end{enumerate}
+
+\end{multicols}
+
+\end{document}
