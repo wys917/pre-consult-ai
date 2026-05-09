@@ -12,11 +12,28 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, make_response, redirect, render_template, request, stream_with_context, url_for
 
+from backend.app.domain.defaults import DEFAULT_SESSION_ID, new_default_summary
+from backend.app.domain.doctor_schedules import DOCTOR_SCHEDULES
+from backend.app.domain.provider_config import MODEL_PROVIDERS, SUMMARY_DEFAULTS, SYSTEM_PROMPT
+from backend.app.services.booking import (
+    book_appointment,
+    generate_summary_pdf,
+    list_department_doctors,
+    list_departments,
+)
+from backend.app.services.providers import call_model_api, get_provider_settings
+from backend.app.state.sessions import (
+    SESSION_LOCK,
+    SESSION_STATES,
+    SESSION_SUBSCRIBERS,
+    build_session_payload,
+    publish_session_event,
+    sse_encode,
+)
+
 load_dotenv()
 
 app = Flask(__name__)
-
-DEFAULT_SESSION_ID = "default"
 
 
 def normalize_session_id(value: object) -> str:
@@ -289,351 +306,6 @@ DEPARTMENT_DETAILS: Dict[str, Dict[str, object]] = {
     },
 }
 
-MODEL_PROVIDERS: Dict[str, Dict[str, object]] = {
-    "doubao": {
-        "label": "豆包",
-        "env_prefix": "DOUBAO",
-        "legacy_env_prefix": "DEEPSEEK",
-        "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
-        "default_model": "doubao-seed-2-0-pro-260215",
-        "supports_multimodal": True,
-        "supports_json_format": False,
-    },
-    "deepseek": {
-        "label": "DeepSeek",
-        "env_prefix": "DEEPSEEK",
-        "legacy_env_prefix": "",
-        "default_base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-chat",
-        "supports_multimodal": False,
-        "supports_json_format": True,
-    },
-}
-
-DOCTOR_SCHEDULES: Dict[str, List[Dict[str, object]]] = {
-    "呼吸内科": [
-        {
-            "id": "resp-1",
-            "name": "钱黄瀚",
-            "title": "主任医师",
-            "intro": "擅长呼吸道感染、慢性咳嗽与肺部炎症分层管理。",
-            "specialty": "发热、咳嗽、肺部感染",
-            "schedule": "09:00-11:30",
-            "slots": 6,
-            "fee": 58,
-            "location": "门诊楼 3 层 A 区",
-        },
-        {
-            "id": "resp-2",
-            "name": "吴承鸿",
-            "title": "副主任医师",
-            "intro": "擅长哮喘、肺炎和呼吸困难的规范化评估。",
-            "specialty": "哮喘、肺炎、气短",
-            "schedule": "13:30-16:30",
-            "slots": 4,
-            "fee": 42,
-            "location": "门诊楼 3 层 A 区",
-        },
-        {
-            "id": "resp-3",
-            "name": "冯知遥",
-            "title": "主治医师",
-            "intro": "擅长上呼吸道感染、咽痛与门诊雾化治疗评估。",
-            "specialty": "咽痛、气道炎症、雾化评估",
-            "schedule": "18:00-20:30",
-            "slots": 8,
-            "fee": 26,
-            "location": "门诊楼 3 层夜间门诊",
-        },
-    ],
-    "心内科": [
-        {
-            "id": "card-1",
-            "name": "陈江文",
-            "title": "主任医师",
-            "intro": "擅长胸痛中心流程、心衰管理与高危胸闷评估。",
-            "specialty": "胸痛、胸闷、心衰",
-            "schedule": "08:30-11:30",
-            "slots": 3,
-            "fee": 68,
-            "location": "门诊楼 2 层 VIP 诊区",
-        },
-        {
-            "id": "card-2",
-            "name": "周敏霞",
-            "title": "主治医师",
-            "intro": "擅长心悸、高血压与心电图异常门诊随访。",
-            "specialty": "心悸、高血压",
-            "schedule": "14:00-17:00",
-            "slots": 5,
-            "fee": 36,
-            "location": "门诊楼 2 层 B 区",
-        },
-        {
-            "id": "card-3",
-            "name": "顾安澜",
-            "title": "副主任医师",
-            "intro": "擅长胸闷胸痛初筛、动态血压与冠脉危险因素评估。",
-            "specialty": "胸闷、胸痛、血压异常",
-            "schedule": "18:00-20:00",
-            "slots": 6,
-            "fee": 48,
-            "location": "门诊楼 2 层晚间门诊",
-        },
-    ],
-    "消化内科": [
-        {
-            "id": "gi-1",
-            "name": "王乐可",
-            "title": "副主任医师",
-            "intro": "擅长腹痛、消化道炎症及胃肠镜前评估。",
-            "specialty": "腹痛、反酸、胃肠炎",
-            "schedule": "09:00-12:00",
-            "slots": 5,
-            "fee": 45,
-            "location": "门诊楼 4 层 B 区",
-        },
-        {
-            "id": "gi-2",
-            "name": "徐懂杰",
-            "title": "主治医师",
-            "intro": "擅长胃肠功能紊乱、恶心呕吐与早筛咨询。",
-            "specialty": "恶心、腹泻、胃肠功能紊乱",
-            "schedule": "13:30-16:30",
-            "slots": 7,
-            "fee": 32,
-            "location": "门诊楼 4 层 B 区",
-        },
-        {
-            "id": "gi-3",
-            "name": "周闻溪",
-            "title": "住院总医师",
-            "intro": "擅长急性胃肠炎、腹泻与轻中度腹痛的快速评估。",
-            "specialty": "腹泻、恶心、胃肠炎",
-            "schedule": "17:30-20:00",
-            "slots": 9,
-            "fee": 18,
-            "location": "门诊楼 4 层便民门诊",
-        },
-    ],
-    "神经内科": [
-        {
-            "id": "neuro-1",
-            "name": "刘畅",
-            "title": "主任医师",
-            "intro": "擅长头痛门诊、脑卒中早筛与眩晕鉴别。",
-            "specialty": "头痛、头晕、麻木",
-            "schedule": "08:30-11:30",
-            "slots": 4,
-            "fee": 62,
-            "location": "门诊楼 5 层 A 区",
-        }
-    ],
-    "皮肤科": [
-        {
-            "id": "derm-1",
-            "name": "沈雅",
-            "title": "主治医师",
-            "intro": "擅长过敏性皮炎、皮疹和瘙痒的快速鉴别。",
-            "specialty": "皮疹、瘙痒、过敏",
-            "schedule": "10:00-16:00",
-            "slots": 6,
-            "fee": 34,
-            "location": "门诊楼 1 层 C 区",
-        }
-    ],
-    "泌尿外科": [
-        {
-            "id": "uro-1",
-            "name": "王宇",
-            "title": "副主任医师",
-            "intro": "擅长泌尿感染、结石与排尿异常评估。",
-            "specialty": "尿频、尿痛、结石",
-            "schedule": "13:00-17:00",
-            "slots": 5,
-            "fee": 46,
-            "location": "门诊楼 6 层 B 区",
-        }
-    ],
-    "普外科": [
-        {
-            "id": "surg-1",
-            "name": "赵忆成",
-            "title": "主任医师",
-            "intro": "擅长急腹症、阑尾炎与微创外科快速处置。",
-            "specialty": "右下腹痛、急腹症",
-            "schedule": "09:30-12:00",
-            "slots": 2,
-            "fee": 65,
-            "location": "门诊楼 7 层急腹症单元",
-        }
-    ],
-    "急诊科": [
-        {
-            "id": "er-1",
-            "name": "急诊值班团队",
-            "title": "24 小时接诊",
-            "intro": "危重症快速评估与绿色通道处置。",
-            "specialty": "胸痛、呼吸困难、意识异常",
-            "schedule": "00:00-23:59",
-            "slots": 999,
-            "fee": 0,
-            "location": "急诊楼 1 层",
-        }
-    ],
-    "全科医学科": [
-        {
-            "id": "gp-1",
-            "name": "王乐丞",
-            "title": "主治医师",
-            "intro": "擅长初诊分诊、慢病管理与症状初筛。",
-            "specialty": "初诊评估、综合分诊",
-            "schedule": "09:00-17:00",
-            "slots": 8,
-            "fee": 28,
-            "location": "门诊楼 1 层全科中心",
-        }
-    ],
-    "耳鼻喉科": [
-        {
-            "id": "ent-1",
-            "name": "江临",
-            "title": "副主任医师",
-            "intro": "擅长咽痛、急慢性鼻炎及耳鸣门诊评估。",
-            "specialty": "咽痛、鼻塞、耳鸣",
-            "schedule": "09:00-12:00",
-            "slots": 7,
-            "fee": 40,
-            "location": "门诊楼 3 层 C 区",
-        },
-        {
-            "id": "ent-2",
-            "name": "叶知夏",
-            "title": "主治医师",
-            "intro": "擅长扁桃体炎、咽喉不适和过敏性鼻炎管理。",
-            "specialty": "扁桃体炎、鼻炎",
-            "schedule": "14:00-17:00",
-            "slots": 8,
-            "fee": 26,
-            "location": "门诊楼 3 层 C 区",
-        },
-    ],
-    "骨科": [
-        {
-            "id": "ortho-1",
-            "name": "陆沉",
-            "title": "主任医师",
-            "intro": "擅长关节疼痛、创伤后疼痛与运动损伤处理。",
-            "specialty": "关节疼痛、运动损伤",
-            "schedule": "09:30-12:00",
-            "slots": 5,
-            "fee": 60,
-            "location": "门诊楼 6 层 A 区",
-        },
-        {
-            "id": "ortho-2",
-            "name": "何砚舟",
-            "title": "主治医师",
-            "intro": "擅长扭伤拉伤、颈肩腰腿痛与骨科随访。",
-            "specialty": "扭伤、腰腿痛",
-            "schedule": "13:30-17:00",
-            "slots": 9,
-            "fee": 30,
-            "location": "门诊楼 6 层 A 区",
-        },
-    ],
-    "内分泌科": [
-        {
-            "id": "endo-1",
-            "name": "沈青禾",
-            "title": "副主任医师",
-            "intro": "擅长糖尿病、甲状腺结节与代谢综合征评估。",
-            "specialty": "糖尿病、甲状腺",
-            "schedule": "08:30-11:30",
-            "slots": 6,
-            "fee": 48,
-            "location": "门诊楼 5 层 B 区",
-        },
-        {
-            "id": "endo-2",
-            "name": "许星然",
-            "title": "主治医师",
-            "intro": "擅长血糖管理和肥胖相关代谢咨询。",
-            "specialty": "血糖管理、代谢咨询",
-            "schedule": "14:00-17:30",
-            "slots": 7,
-            "fee": 32,
-            "location": "门诊楼 5 层 B 区",
-        },
-    ],
-    "妇科": [
-        {
-            "id": "gyn-1",
-            "name": "苏禾",
-            "title": "主任医师",
-            "intro": "擅长月经异常、盆腔痛与常见妇科炎症诊疗。",
-            "specialty": "月经异常、下腹痛",
-            "schedule": "09:00-12:00",
-            "slots": 5,
-            "fee": 58,
-            "location": "门诊楼 2 层 C 区",
-        },
-        {
-            "id": "gyn-2",
-            "name": "程晚",
-            "title": "主治医师",
-            "intro": "擅长白带异常、妇科感染和复诊随访。",
-            "specialty": "妇科感染、复诊",
-            "schedule": "13:30-16:30",
-            "slots": 8,
-            "fee": 28,
-            "location": "门诊楼 2 层 C 区",
-        },
-    ],
-    "儿科": [
-        {
-            "id": "ped-1",
-            "name": "陶然",
-            "title": "副主任医师",
-            "intro": "擅长儿童发热、呼吸道感染与过敏评估。",
-            "specialty": "儿童发热、咳嗽",
-            "schedule": "09:00-12:00",
-            "slots": 10,
-            "fee": 35,
-            "location": "儿科门诊楼 2 层",
-        },
-        {
-            "id": "ped-2",
-            "name": "邵知予",
-            "title": "主治医师",
-            "intro": "擅长儿童腹泻、呕吐和急性胃肠炎评估。",
-            "specialty": "儿童腹泻、呕吐",
-            "schedule": "14:00-17:00",
-            "slots": 9,
-            "fee": 24,
-            "location": "儿科门诊楼 2 层",
-        },
-    ],
-}
-
-SUMMARY_DEFAULTS: Dict[str, object] = {
-    "chiefComplaint": "待补充",
-    "duration": "待补充",
-    "accompanyingSymptoms": [],
-    "redFlags": [],
-    "recommendedDepartment": "待判断",
-    "departmentReason": "根据现有症状综合判断。",
-    "triagePriority": "待判断",
-    "missingInformation": [],
-    "nextQuestion": "",
-    "doctorSummary": "患者信息尚未完善，等待对话开始。",
-    "pastHistory": [],
-    "allergyHistory": "待补充",
-    "medicationHistory": "待补充",
-    "consistencyAlerts": [],
-    "imageFindings": "未提供影像",
-    "departmentProfile": {},
-}
 
 
 def bump_priority(current: str, target: str) -> str:
@@ -990,162 +662,6 @@ chiefComplaint, duration, accompanyingSymptoms, redFlags, recommendedDepartment,
 """
 
 
-def get_provider_settings(provider: str) -> Dict[str, object]:
-    config = MODEL_PROVIDERS.get(provider)
-    if not config:
-        raise ValueError("不支持的模型通道")
-
-    prefix = str(config["env_prefix"])
-    legacy_prefix = str(config.get("legacy_env_prefix", ""))
-
-    def read_setting(field: str) -> str:
-        value = os.getenv(f"{prefix}_{field}", "").strip()
-        if value:
-            return value
-        if legacy_prefix:
-            return os.getenv(f"{legacy_prefix}_{field}", "").strip()
-        return ""
-
-    api_key = read_setting("API_KEY")
-    if not api_key:
-        raise RuntimeError(f"尚未配置{config['label']}接口，请检查 .env 中的 {prefix}_API_KEY。")
-
-    base_url = read_setting("BASE_URL") or str(config["default_base_url"])
-    model_name = read_setting("MODEL") or str(config["default_model"])
-
-    return {
-        **config,
-        "api_key": api_key,
-        "base_url": base_url,
-        "model_name": model_name,
-    }
-
-
-def adapt_messages_for_provider(messages: List[Dict[str, object]], supports_multimodal: bool) -> List[Dict[str, object]]:
-    if supports_multimodal:
-        return messages
-
-    adapted: List[Dict[str, object]] = []
-    for message in messages:
-        content = message.get("content")
-        if isinstance(content, str):
-            adapted.append({"role": message["role"], "content": content})
-            continue
-
-        text_parts: List[str] = []
-        image_count = 0
-        if isinstance(content, list):
-            for item in content:
-                if not isinstance(item, dict):
-                    continue
-                if item.get("type") == "text":
-                    text_parts.append(str(item.get("text", "")).strip())
-                elif item.get("type") == "image_url":
-                    image_count += 1
-
-        if image_count:
-            text_parts.append(
-                f"患者还上传了 {image_count} 张图片，但当前模型通道不支持直接解析影像，请在 imageFindings 中说明未解析影像。"
-            )
-
-        adapted.append(
-            {
-                "role": message["role"],
-                "content": "\n".join(part for part in text_parts if part) or "患者上传了图片，请结合文本继续追问。",
-            }
-        )
-    return adapted
-
-
-def parse_json_content(content: str) -> Dict[str, object]:
-    clean_content = (content or "").strip()
-    if clean_content.startswith("```json"):
-        clean_content = clean_content[7:]
-    elif clean_content.startswith("```"):
-        clean_content = clean_content[3:]
-    if clean_content.endswith("```"):
-        clean_content = clean_content[:-3]
-    clean_content = clean_content.strip()
-
-    try:
-        return json.loads(clean_content)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", clean_content, re.S)
-        if match:
-            return json.loads(match.group(0))
-        raise
-
-
-def normalize_model_summary(summary: Dict[str, object], has_image: bool, provider_settings: Dict[str, object]) -> Dict[str, object]:
-    normalized = dict(SUMMARY_DEFAULTS)
-    normalized.update(summary)
-
-    for key in ["accompanyingSymptoms", "redFlags", "missingInformation", "pastHistory", "consistencyAlerts"]:
-        value = normalized.get(key)
-        if isinstance(value, list):
-            normalized[key] = [str(item).strip() for item in value if str(item).strip()]
-        elif value:
-            normalized[key] = [str(value).strip()]
-        else:
-            normalized[key] = []
-
-    if normalized.get("triagePriority") not in {"普通", "尽快", "紧急"}:
-        normalized["triagePriority"] = "待判断"
-
-    if has_image and not provider_settings.get("supports_multimodal"):
-        normalized["imageFindings"] = "检测到已上传图片，但当前所选模型通道不支持直接解析影像。"
-    elif not has_image and not str(normalized.get("imageFindings", "")).strip():
-        normalized["imageFindings"] = "未提供影像"
-
-    if not str(normalized.get("doctorSummary", "")).strip():
-        normalized["doctorSummary"] = build_doctor_summary(normalized, "")
-
-    department = str(normalized.get("recommendedDepartment", "")).strip()
-    if not isinstance(normalized.get("departmentProfile"), dict) or not normalized.get("departmentProfile"):
-        normalized["departmentProfile"] = build_department_profile(department)
-
-    return normalized
-
-
-def call_model_api(provider: str, messages: List[Dict[str, object]]) -> Dict[str, object]:
-    provider_settings = get_provider_settings(provider)
-    adapted_messages = adapt_messages_for_provider(messages, bool(provider_settings["supports_multimodal"]))
-
-    payload = {
-        "model": provider_settings["model_name"],
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + adapted_messages,
-        "temperature": 0.2,
-        "stream": False,
-    }
-    if provider_settings.get("supports_json_format"):
-        payload["response_format"] = {"type": "json_object"}
-
-    headers = {
-        "Authorization": f"Bearer {provider_settings['api_key']}",
-        "Content-Type": "application/json",
-    }
-
-    response = requests.post(
-        str(provider_settings["base_url"]).rstrip("/") + "/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=60,
-    )
-    response.raise_for_status()
-
-    data = response.json()
-    try:
-        content = data["choices"][0]["message"]["content"]
-        summary = parse_json_content(content)
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError("模型返回结果无法解析为 JSON，请检查提示词或接口配置。") from exc
-
-    normalized = normalize_model_summary(summary, contains_uploaded_image(messages), provider_settings)
-    normalized["_model"] = provider_settings["model_name"]
-    normalized["_provider"] = provider
-    normalized["_provider_label"] = provider_settings["label"]
-    return normalized
-
 
 def validate_messages(messages: object) -> List[Dict[str, object]]:
     if not isinstance(messages, list):
@@ -1189,113 +705,17 @@ def resolve_provider(data: Dict[str, object]) -> str:
     return "doubao"
 
 
-def list_department_doctors(department: str) -> List[Dict[str, object]]:
-    return DOCTOR_SCHEDULES.get(department, [])
+def list_department_doctors_local(department: str) -> List[Dict[str, object]]:
+    return list_department_doctors(department, DOCTOR_SCHEDULES)
 
 
-def list_departments() -> List[Dict[str, object]]:
-    names = sorted(set(DEPARTMENT_DETAILS.keys()) | set(DOCTOR_SCHEDULES.keys()))
-    departments: List[Dict[str, object]] = []
-    for name in names:
-        profile = build_department_profile(name)
-        departments.append(
-            {
-                "name": name,
-                "location": profile["location"],
-                "waitTime": profile["waitTime"],
-                "overview": profile["overview"],
-                "doctorCount": len(DOCTOR_SCHEDULES.get(name, [])),
-            }
-        )
-    return departments
+def list_departments_local() -> List[Dict[str, object]]:
+    return list_departments(
+        DEPARTMENT_DETAILS,
+        DOCTOR_SCHEDULES,
+        build_department_profile=build_department_profile,
+    )
 
-
-def format_list(items: object, empty_text: str) -> str:
-    if isinstance(items, list) and items:
-        return "、".join(str(item) for item in items)
-    if isinstance(items, str) and items.strip():
-        return items.strip()
-    return empty_text
-
-
-def build_summary_lines(summary: Dict[str, object]) -> List[str]:
-    exported_at = datetime.now().strftime("%Y-%m-%d %H:%M")
-    return [
-        "门诊预问诊单",
-        f"导出时间：{exported_at}",
-        "",
-        "【结构化病历摘要】",
-        f"主诉：{summary.get('chiefComplaint') or '待补充'}",
-        f"症状持续时间：{summary.get('duration') or '待补充'}",
-        f"伴随症状：{format_list(summary.get('accompanyingSymptoms'), '待补充')}",
-        f"红旗征象：{format_list(summary.get('redFlags'), '暂未识别')}",
-        f"影像/检查所见：{summary.get('imageFindings') or '未提供影像'}",
-        f"信息一致性提醒：{format_list(summary.get('consistencyAlerts'), '暂无')}",
-        f"既往史：{format_list(summary.get('pastHistory'), '待补充')}",
-        f"过敏史：{summary.get('allergyHistory') or '待补充'}",
-        f"近期用药史：{summary.get('medicationHistory') or '待补充'}",
-        f"推荐科室：{summary.get('recommendedDepartment') or '待判断'}",
-        f"科室推荐原因：{summary.get('departmentReason') or '待补充'}",
-        f"就诊优先级：{summary.get('triagePriority') or '待判断'}",
-        f"仍待补充信息：{format_list(summary.get('missingInformation'), '无')}",
-        "",
-        "【医生端摘要】",
-        str(summary.get("doctorSummary") or "患者信息尚未完善，等待对话开始。"),
-    ]
-
-
-def generate_summary_pdf(summary: Dict[str, object]) -> bytes:
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.utils import simpleSplit
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-        from reportlab.pdfgen import canvas
-    except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("PDF 依赖未安装，请先执行 pip install -r requirements.txt。") from exc
-
-    buffer = io.BytesIO()
-    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    margin_x = 44
-    top = height - 52
-    bottom = 54
-    available_width = width - margin_x * 2
-    cursor_y = top
-
-    def ensure_page(required_height: float) -> None:
-        nonlocal cursor_y
-        if cursor_y - required_height < bottom:
-            pdf.showPage()
-            pdf.setTitle("门诊预问诊单")
-            cursor_y = top
-
-    def draw_text_line(text: str, font_name: str, font_size: int, line_gap: int) -> None:
-        nonlocal cursor_y
-        lines = simpleSplit(text, font_name, font_size, available_width) or [""]
-        ensure_page(len(lines) * line_gap)
-        pdf.setFont(font_name, font_size)
-        for line in lines:
-            pdf.drawString(margin_x, cursor_y, line)
-            cursor_y -= line_gap
-
-    pdf.setTitle("门诊预问诊单")
-    draw_text_line("门诊预问诊单", "STSong-Light", 18, 24)
-    draw_text_line("课程演示版 - 仅用于预问诊摘要与模拟挂号展示", "STSong-Light", 9, 16)
-    cursor_y -= 6
-
-    for line in build_summary_lines(summary)[1:]:
-        if not line:
-            cursor_y -= 8
-            continue
-        font_size = 12 if line.startswith("【") else 11
-        line_gap = 18 if font_size == 12 else 17
-        draw_text_line(line, "STSong-Light", font_size, line_gap)
-
-    pdf.save()
-    buffer.seek(0)
-    return buffer.getvalue()
 
 
 @app.route("/")
@@ -1388,7 +808,13 @@ def api_chat():
             model_name = "rule-based"
             provider_label = "Mock 规则引擎"
         else:
-            summary = call_model_api(provider, messages)
+            summary = call_model_api(
+                provider,
+                messages,
+                contains_uploaded_image=contains_uploaded_image,
+                build_doctor_summary=build_doctor_summary,
+                build_department_profile=build_department_profile,
+            )
             source = "api"
             model_name = str(summary.pop("_model", "unknown"))
             provider_label = str(summary.pop("_provider_label", provider))
@@ -1435,7 +861,7 @@ def api_chat():
 
 @app.get("/api/departments/<department>/doctors")
 def api_department_doctors(department: str):
-    doctors = list_department_doctors(department)
+    doctors = list_department_doctors_local(department)
     if not doctors:
         return jsonify({"error": "该科室暂无排班信息"}), 404
     return jsonify(
@@ -1450,7 +876,7 @@ def api_department_doctors(department: str):
 
 @app.get("/api/departments")
 def api_departments():
-    return jsonify({"departments": list_departments()})
+    return jsonify({"departments": list_departments_local()})
 
 
 @app.post("/api/appointments")
@@ -1463,25 +889,18 @@ def api_appointments():
     if not department or not doctor_id:
         return jsonify({"error": "department 和 doctorId 为必填"}), 400
 
-    doctors = list_department_doctors(department)
-    for doctor in doctors:
-        if doctor.get("id") != doctor_id:
-            continue
-        if int(doctor.get("slots", 0)) <= 0:
-            return jsonify({"error": "该医生号源已满，请选择其他医生"}), 409
-        if doctor_id != "er-1":
-            doctor["slots"] = int(doctor["slots"]) - 1
-        return jsonify(
-            {
-                "success": True,
-                "appointmentId": f"APT-{uuid.uuid4().hex[:8].upper()}",
-                "message": f"{patient_name} 挂号成功，已预约 {doctor['name']}（{doctor['title']}）。",
-                "department": department,
-                "doctor": doctor,
-            }
+    try:
+        result = book_appointment(
+            department=department,
+            doctor_id=doctor_id,
+            patient_name=patient_name,
+            doctor_schedules=DOCTOR_SCHEDULES,
         )
-
-    return jsonify({"error": "未找到对应医生"}), 404
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    except LookupError:
+        return jsonify({"error": "未找到对应医生"}), 404
 
 
 @app.post("/api/export/pdf")
