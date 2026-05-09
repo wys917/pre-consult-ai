@@ -1,87 +1,199 @@
-# 门诊预问诊与智能分诊摘要 Demo
+# Pre-Consult AI
 
-这是一个课程展示的 Web Demo：
+*An AI-assisted pre-triage and medical summary system for outpatient intake.*
 
-- 患者端（`/patient`）：患者与 AI 对话 + 实时生成结构化病历摘要与推荐科室
-- 医生端（`/doctor`）：实时接收患者端摘要更新，用于接诊前预览
-- 支持两种模式：
-  - Mock 演示模式：无需任何模型 API，直接可以跑
-  - API 模式：使用DeepSeek辅助
+Pre-Consult AI is a portfolio-grade upgrade of a medical AI course project. It transforms free-form patient conversations into a structured pre-consult summary, highlights red-flag symptoms, recommends a department, simulates appointment booking, and streams the result to a doctor-facing view in real time.
 
-## 已实现功能
+> **Positioning:** this project is designed as an *AI application / full-stack portfolio project*, not just a classroom demo.
 
-1. 聊天式预问诊界面
-2. 结构化病历摘要实时更新
-3. 自动提取：
-   - 主诉
-   - 症状持续时间
-   - 伴随症状
-   - 红旗征象
-   - 推荐科室
-   - 就诊优先级
-4. 医生端摘要生成
-5. 复制摘要 / 下载 JSON
-6. 示例病例一键演示
-7. 快捷补全追问与紧急弹窗提醒
-8. 既往史/过敏史/用药史抽取与一致性提醒
-9. 一键导出打印版 PDF 预问诊单
-10. 科室挂号面板（当日坐诊医生、剩余名额、挂号成功提示）
+## What problem it solves
 
-## 本地运行
+In real outpatient settings, patients often describe symptoms in fragmented, colloquial language, while clinicians need a concise, structured summary before the visit begins. Pre-Consult AI focuses on the handoff layer between patient expression and clinical intake.
+
+The system is built to:
+- collect symptom narratives through natural conversation,
+- extract a structured triage summary,
+- identify urgent red flags,
+- recommend a likely department and urgency level,
+- provide a doctor-side preview before the patient arrives.
+
+## Core features
+
+- **Patient-side chat intake** with multi-turn questioning
+- **Doctor-side live dashboard** for same-session summary viewing
+- **Real-time SSE sync** between patient and doctor interfaces
+- **Structured summary extraction**
+  - chief complaint
+  - duration
+  - accompanying symptoms
+  - past history / allergy history / medication history
+  - consistency alerts
+  - image findings placeholder
+- **Red-flag detection and urgency escalation**
+- **Department recommendation** with rationale and department profile
+- **Mock rule engine + model provider mode**
+  - Mock (offline demo)
+  - Doubao
+  - DeepSeek
+- **Simulated appointment booking** with doctor schedule and remaining slots
+- **PDF export** for offline handoff / printing
+- **Pytest coverage** for key API routes
+
+## Demo routes
+
+After local startup:
+
+- `http://127.0.0.1:5001/patient` — patient interface
+- `http://127.0.0.1:5001/doctor` — doctor interface
+- `http://127.0.0.1:5001/combined` — combined showcase view
+
+## Screenshots
+
+### Patient interface
+![Patient interface](docs/image-20260330230224276.png)
+
+### Doctor interface
+![Doctor interface](docs/多智能体.png)
+
+### Architecture
+![Architecture](docs/system-architecture.svg)
+
+## Architecture highlights
+- **Flask backend** exposing triage, department, appointment, export, and session streaming APIs
+- **Vanilla JS frontend** for chat flow, doctor view, and real-time status updates
+- **Rule-based triage pipeline** for offline demonstration and safety-oriented defaults
+- **Provider abstraction layer** for switching between model channels
+- **SSE-based synchronization** for real-time doctor-side updates
+- **In-memory schedule/session store** suitable for demo and portfolio use
+
+## Local development
+
+### 1) Create environment and install dependencies
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### 2) Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+If you only want the offline demo, you can leave API keys empty and use **Mock** mode in the UI.
+
+### 3) Run the app
+
+```bash
 python app.py
 ```
 
-然后打开浏览器访问：
+Open:
 
 ```text
 http://127.0.0.1:5001
 ```
 
-推荐打开两个窗口：
+## Testing
 
-- 患者端：`/patient`（默认首页会跳转到这里）
-- 医生端：`/doctor`（患者端点击“打开医生端”会自动带上同一个 session）
-
-支持多患者并发演示：同时打开多个 `/patient` 标签页即可，每个标签页会自动生成独立 session；医生端 URL 中的 `?session=...` 用于订阅对应患者的实时摘要。
-
-如果需要保留原先左右同屏的合并版界面：
-
-- 合并版：`/combined`
-
-## 如何切到 API 模式
-
-页面右上角把模式切到 `API 模式`。
-
-## 目录结构
-
-```text
-pre-consult-ai/
-├── app.py
-├── requirements.txt
-├── .env
-├── .gitignore
-├── README.md
-├── docs/
-│   ├── 医学人工智能系统设计-图文版.md
-│   ├── 医学人工智能系统设计-图文版.pdf
-│   ├── assets/
-│   └── pdf/
-├── templates/
-│   └── index.html
-├── static/
-│   ├── style.css
-│   └── app.js
-└── tests/
-    └── test_app.py
+```bash
+python -m pytest -q
 ```
 
-## 可继续增强的点
+## Deployment
 
-增加医生端后台视图
+The recommended deployment path for this project is:
 
-## 免责声明
+- **Dockerized deployment**
+- **Render Web Service**
 
-本 Demo 仅用于课程展示与产品原型说明，不用于真实医疗诊断或急救决策。
+Why this is the best default for a portfolio project:
+- closer to real production practice than raw `python app.py`
+- environment consistency across local / cloud
+- easier migration later to Railway / Fly.io / ECS / Kubernetes
+- avoids platform Python runtime drift
+- shows containerization awareness on your resume
+
+### Production stack used here
+- `Dockerfile` for build/runtime consistency
+- `gunicorn` as WSGI process manager
+- `render.yaml` for deployment configuration
+- `docker-compose.yml` for local container testing
+
+### Recommended public demo mode
+For a public portfolio demo:
+- default to **Mock mode** in the UI
+- keep paid API keys only in Render environment variables
+
+### Render deployment steps
+1. Push this repository to GitHub.
+2. Go to Render and create a new **Web Service** from the repo.
+3. Render will detect `render.yaml` and the `Dockerfile`.
+4. Add environment variables in Render:
+   - `DOUBAO_API_KEY` (optional if public demo uses Mock mode)
+   - `DEEPSEEK_API_KEY` (optional)
+   - `DOUBAO_BASE_URL`
+   - `DOUBAO_MODEL`
+   - `DEEPSEEK_BASE_URL`
+   - `DEEPSEEK_MODEL`
+5. Deploy.
+6. After deployment, open:
+   - `/patient`
+   - `/doctor`
+   - `/combined`
+
+### Local Docker run
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5001
+```
+
+### Render runtime behavior
+The container starts with:
+
+```bash
+gunicorn --bind 0.0.0.0:${PORT:-5001} app:app
+```
+
+So it is compatible with Render's injected `PORT`.
+
+## API overview
+
+### `POST /api/chat`
+Input patient conversation and receive:
+- assistant reply
+- structured triage summary
+- selected provider metadata
+- session id for synchronization
+
+### `GET /api/sessions/<session_id>/stream`
+Server-Sent Events stream for doctor-side real-time updates.
+
+### `GET /api/departments`
+List available departments.
+
+### `GET /api/departments/<department>/doctors`
+List doctor schedule for a department.
+
+### `POST /api/appointments`
+Simulate booking a doctor slot.
+
+### `POST /api/export/pdf`
+Export the structured summary as a PDF handoff form.
+
+## Safety notice
+
+This project is a **demo / prototype** for pre-consult workflow support.
+It is **not** a medical diagnosis system, and must not be used as the sole basis for emergency or treatment decisions.
+
+## Repository
+
+GitHub: https://github.com/wys917/pre-consult-ai

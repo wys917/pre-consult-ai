@@ -1,1 +1,38 @@
+# Environment
 .env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Build / runtime artifacts
+output/
+tmp/
+*.log
+*.sqlite3
+
+# Generated exports
+*triage-summary*.pdf
+tmp-test-export.pdf
+
+# Large local-only assets
+*.mp4

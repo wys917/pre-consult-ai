@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: pre-consult-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /api/departments
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: DOUBAO_API_KEY
+        sync: false
+      - key: DOUBAO_BASE_URL
+        value: https://ark.cn-beijing.volces.com/api/v3
+      - key: DOUBAO_MODEL
+        value: doubao-seed-2-0-pro-250415
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
