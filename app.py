@@ -12,7 +12,7 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, make_response, redirect, render_template, request, stream_with_context, url_for
 
-from backend.app.domain.defaults import DEFAULT_SESSION_ID, new_default_summary
+from backend.app.domain.defaults import DEFAULT_SESSION_ID
 from backend.app.domain.doctor_schedules import DOCTOR_SCHEDULES
 from backend.app.domain.provider_config import MODEL_PROVIDERS, SUMMARY_DEFAULTS, SYSTEM_PROMPT
 from backend.app.services.booking import (
@@ -22,6 +22,12 @@ from backend.app.services.booking import (
     list_departments,
 )
 from backend.app.services.providers import call_model_api, get_provider_settings
+from backend.app.services.triage import (
+    analyze_conversation,
+    build_department_profile,
+    build_doctor_summary,
+    contains_uploaded_image,
+)
 from backend.app.state.sessions import (
     SESSION_LOCK,
     SESSION_STATES,
@@ -643,23 +649,6 @@ def build_assistant_reply(summary: Dict[str, object]) -> str:
     }.get(priority, "我先帮你整理了一下关键信息。")
 
     return f"{opening}{next_question}"
-
-
-SYSTEM_PROMPT = """你是一个具备视觉能力的门诊预问诊助手。你的任务不是给出最终诊断，而是：
-1. 分析患者对话和上传的图片（如皮疹、化验单等），提取结构化病历摘要。
-2. 识别红旗征象并给出分诊优先级。
-3. 推荐就诊科室。
-4. 继续提出下一轮最关键的追问。
-
-请务必以 JSON 返回，且字段严格为：
-chiefComplaint, duration, accompanyingSymptoms, redFlags, recommendedDepartment, departmentReason, triagePriority, missingInformation, nextQuestion, doctorSummary, pastHistory, allergyHistory, medicationHistory, consistencyAlerts, imageFindings
-
-约束：
-- imageFindings: 对上传图片的客观描述（如"见红色斑丘疹"），如果没有图片则返回"未提供影像"。
-- triagePriority 只能是：普通 / 尽快 / 紧急
-- 不要给出确定性诊断
-- 输出内容必须是合法 JSON，不要使用 Markdown 代码块
-"""
 
 
 
