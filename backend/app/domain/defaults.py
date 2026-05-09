@@ -21,4 +21,7 @@ def new_default_summary() -> Dict[str, object]:
         "consistencyAlerts": [],
         "imageFindings": "未提供影像",
         "departmentProfile": {},
+        "visitPreparation": [],
+        "selfCareAdvice": [],
+        "followUpPlan": [],
     }

@@ -15,6 +15,9 @@ const defaultSummary = {
   consistencyAlerts: [],
   imageFindings: '未提供影像',
   departmentProfile: {},
+  visitPreparation: [],
+  selfCareAdvice: [],
+  followUpPlan: [],
 };
 
 const providerLabels = {
@@ -155,6 +158,9 @@ const fields = {
   pastHistory: document.getElementById('pastHistory'),
   allergyHistory: document.getElementById('allergyHistory'),
   medicationHistory: document.getElementById('medicationHistory'),
+  visitPreparation: document.getElementById('visitPreparation'),
+  selfCareAdvice: document.getElementById('selfCareAdvice'),
+  followUpPlan: document.getElementById('followUpPlan'),
 };
 
 const hasChat = Boolean(chatWindow && messageInput && sendBtn);
@@ -515,6 +521,9 @@ function renderSummary() {
   renderList(fields.redFlags, summary.redFlags, '暂未识别');
   renderList(fields.pastHistory, summary.pastHistory, '待补充');
   renderList(fields.consistencyAlerts, summary.consistencyAlerts, '暂无');
+  renderList(fields.visitPreparation, summary.visitPreparation, '待生成');
+  renderList(fields.selfCareAdvice, summary.selfCareAdvice, '待生成');
+  renderList(fields.followUpPlan, summary.followUpPlan, '待生成');
   renderMissingList(summary.missingInformation);
   updateBookingPanel();
 }
@@ -650,6 +659,9 @@ function buildSummaryText() {
     `科室推荐原因：${summary.departmentReason || '待补充'}`,
     `就诊优先级：${summary.triagePriority || '待判断'}`,
     `仍待补充信息：${formatList(summary.missingInformation, '无')}`,
+    `就诊前准备：${formatList(summary.visitPreparation, '待生成')}`,
+    `居家观察建议：${formatList(summary.selfCareAdvice, '待生成')}`,
+    `后续流程建议：${formatList(summary.followUpPlan, '待生成')}`,
     '',
     '【医生端摘要】',
     summary.doctorSummary || '患者信息尚未完善，等待对话开始。',

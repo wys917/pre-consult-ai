@@ -289,6 +289,9 @@ def contains_uploaded_image(messages: List[Dict[str, object]]) -> bool:
     return False
 
 
+from backend.app.services.workflow import enrich_summary_workflow
+
+
 def analyze_conversation(messages: List[Dict[str, object]]) -> Dict[str, object]:
     raw_text = combined_user_text(messages)
     text = normalize_text(raw_text)
@@ -331,4 +334,4 @@ def analyze_conversation(messages: List[Dict[str, object]]) -> Dict[str, object]
         ),
     }
     summary["doctorSummary"] = build_doctor_summary(summary, age)
-    return summary
+    return enrich_summary_workflow(summary)
