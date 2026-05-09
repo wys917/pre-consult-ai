@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from queue import Full, Queue
 from threading import Lock
@@ -23,7 +24,7 @@ def build_session_payload(
         "summary": summary if isinstance(summary, dict) else new_default_summary(),
         "meta": meta if isinstance(meta, dict) else {},
         "patientInputs": patient_inputs if isinstance(patient_inputs, list) else [],
-        "updatedAt": updated_at,
+        "updatedAt": updated_at or datetime.now().isoformat(timespec="seconds"),
     }
 
 

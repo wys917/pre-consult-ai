@@ -1,154 +1,22 @@
 import io
-import json
 import os
-import re
 import uuid
-from datetime import datetime
-from queue import Full, Queue
-from threading import Lock
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
-import requests
 from dotenv import load_dotenv
 from flask import Flask
 
 from backend.app.api.routes import bp as routes_bp
-from backend.app.domain.defaults import DEFAULT_SESSION_ID
 from backend.app.domain.doctor_schedules import DOCTOR_SCHEDULES
-from backend.app.services.triage import analyze_conversation, build_department_profile, build_doctor_summary, contains_uploaded_image
-from backend.app.state.sessions import (
-    SESSION_LOCK,
-    SESSION_STATES,
-    SESSION_SUBSCRIBERS,
-    build_session_payload,
-    publish_session_event,
-    sse_encode,
+from backend.app.services.session_helpers import (
+    build_assistant_reply,
+    extract_patient_inputs,
+    normalize_session_id,
 )
 
 load_dotenv()
 
 app = Flask(__name__)
-
-
-def normalize_session_id(value: object) -> str:
-    session_id = str(value or "").strip()
-    if not session_id:
-        return DEFAULT_SESSION_ID
-
-    # Keep it URL-friendly and avoid accidental huge keys.
-    session_id = re.sub(r"[^a-zA-Z0-9_-]+", "", session_id)[:64]
-    return session_id or DEFAULT_SESSION_ID
-
-
-def new_default_summary() -> Dict[str, object]:
-    return {
-        "chiefComplaint": "待补充",
-        "duration": "待补充",
-        "accompanyingSymptoms": [],
-        "redFlags": [],
-        "recommendedDepartment": "待判断",
-        "departmentReason": "待补充",
-        "triagePriority": "待判断",
-        "missingInformation": [],
-        "nextQuestion": "",
-        "doctorSummary": "患者信息尚未完善，等待对话开始。",
-        "pastHistory": [],
-        "allergyHistory": "待补充",
-        "medicationHistory": "待补充",
-        "consistencyAlerts": [],
-        "imageFindings": "未提供影像",
-        "departmentProfile": {},
-    }
-
-
-SESSION_STATES: Dict[str, Dict[str, object]] = {}
-SESSION_SUBSCRIBERS: Dict[str, List[Queue]] = {}
-SESSION_LOCK = Lock()
-
-
-def build_session_payload(
-    session_id: str,
-    *,
-    summary: Optional[Dict[str, object]] = None,
-    meta: Optional[Dict[str, object]] = None,
-    patient_inputs: Optional[List[Dict[str, object]]] = None,
-) -> Dict[str, object]:
-    return {
-        "sessionId": session_id,
-        "summary": summary if isinstance(summary, dict) else new_default_summary(),
-        "meta": meta if isinstance(meta, dict) else {},
-        "patientInputs": patient_inputs if isinstance(patient_inputs, list) else [],
-        "updatedAt": datetime.now().isoformat(timespec="seconds"),
-    }
-
-
-def publish_session_event(session_id: str, event: str, payload: Dict[str, object]) -> None:
-    with SESSION_LOCK:
-        subscribers = list(SESSION_SUBSCRIBERS.get(session_id, []))
-
-    packet = {"event": event, "payload": payload}
-    for subscriber in subscribers:
-        try:
-            subscriber.put_nowait(packet)
-        except Full:
-            # Drop the oldest event to keep the stream fresh.
-            try:
-                subscriber.get_nowait()
-                subscriber.put_nowait(packet)
-            except Exception:  # noqa: BLE001
-                continue
-
-
-def sse_encode(event: str, payload: Dict[str, object]) -> str:
-    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
-
-def normalize_patient_content(content: object) -> Tuple[str, bool]:
-    if isinstance(content, str):
-        return content.strip(), False
-
-    if isinstance(content, list):
-        texts: List[str] = []
-        has_image = False
-        for item in content:
-            if not isinstance(item, dict):
-                continue
-            item_type = str(item.get("type", "")).strip().lower()
-            if item_type == "text":
-                text_part = str(item.get("text", "")).strip()
-                if text_part:
-                    texts.append(text_part)
-            elif item_type in {"image_url", "image"}:
-                has_image = True
-
-        return "\n".join(texts).strip(), has_image
-
-    return str(content).strip(), False
-
-
-def extract_patient_inputs(messages: List[Dict[str, object]]) -> List[Dict[str, object]]:
-    inputs: List[Dict[str, object]] = []
-    for message in messages:
-        if message.get("role") != "user":
-            continue
-
-        text, has_image = normalize_patient_content(message.get("content"))
-        display_text = text
-        if has_image:
-            display_text = f"{text}\n[已上传图片]" if text else "[已上传图片]"
-
-        display_text = display_text.strip()
-        if not display_text:
-            continue
-
-        inputs.append(
-            {
-                "text": display_text[:1200],
-                "hasImage": has_image,
-            }
-        )
-
-    return inputs[-30:]
 
 
 SYMPTOM_PATTERNS: List[Tuple[str, List[str]]] = [
