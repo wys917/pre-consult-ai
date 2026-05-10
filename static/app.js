@@ -18,6 +18,10 @@ const defaultSummary = {
   visitPreparation: [],
   selfCareAdvice: [],
   followUpPlan: [],
+  workflowStage: 'collecting',
+  workflowStageLabel: '信息采集中',
+  handoffBanner: {},
+  workflowTimeline: [],
 };
 
 const providerLabels = {
@@ -135,6 +139,13 @@ const patientInputsMeta = document.getElementById('patientInputsMeta');
 const bookingPriority = document.getElementById('bookingPriority');
 const bookingDate = document.getElementById('bookingDate');
 const bookingHint = document.getElementById('bookingHint');
+const handoffBannerCard = document.getElementById('handoffBannerCard');
+const handoffBannerTitle = document.getElementById('handoffBannerTitle');
+const handoffBannerMessage = document.getElementById('handoffBannerMessage');
+const workflowStageLabel = document.getElementById('workflowStageLabel');
+const workflowStageBadge = document.getElementById('workflowStageBadge');
+const workflowStageInline = document.getElementById('workflowStageInline');
+const workflowTimeline = document.getElementById('workflowTimeline');
 const departmentOverview = document.getElementById('departmentOverview');
 const departmentLocation = document.getElementById('departmentLocation');
 const departmentWaitTime = document.getElementById('departmentWaitTime');
@@ -370,6 +381,61 @@ function renderMissingList(items) {
   fields.missingInformation.classList.remove('empty-list');
 }
 
+function applyBadgeTone(element, tone) {
+  if (!element) return;
+  element.className = 'triage-badge';
+  if (tone === 'success' || tone === 'ready_for_booking') element.classList.add('normal');
+  else if (tone === 'warning' || tone === 'ready_for_triage') element.classList.add('warning');
+  else if (tone === 'danger' || tone === 'urgent_handoff') element.classList.add('danger');
+  else element.classList.add('neutral');
+}
+
+function renderWorkflowBanner(banner, stageLabel) {
+  if (!(handoffBannerCard && handoffBannerTitle && handoffBannerMessage && workflowStageInline)) return;
+
+  const safeBanner = banner && typeof banner === 'object' ? banner : {};
+  handoffBannerCard.className = 'workflow-banner';
+  handoffBannerCard.classList.add(safeBanner.level || 'info');
+  handoffBannerTitle.textContent = safeBanner.title || '继续补充预问诊信息';
+  handoffBannerMessage.textContent = safeBanner.message || '请先补齐缺失信息，再进入分诊与挂号流程。';
+  workflowStageInline.textContent = stageLabel || '信息采集中';
+}
+
+function renderWorkflowTimeline(items) {
+  if (!workflowTimeline) return;
+  workflowTimeline.innerHTML = '';
+
+  const list = Array.isArray(items) && items.length
+    ? items
+    : [{ label: '等待流程开始', detail: '发送首条患者描述后开始生成流程进度。', status: 'pending' }];
+
+  list.forEach((item) => {
+    const li = document.createElement('li');
+    li.className = `workflow-step ${item.status || 'pending'}`;
+
+    const marker = document.createElement('span');
+    marker.className = 'workflow-step-marker';
+    marker.textContent = item.status === 'completed' ? '✓' : item.status === 'active' ? '•' : '·';
+
+    const body = document.createElement('div');
+    body.className = 'workflow-step-body';
+
+    const title = document.createElement('strong');
+    title.textContent = item.label || '未命名步骤';
+
+    const detail = document.createElement('p');
+    detail.textContent = item.detail || '';
+
+    body.appendChild(title);
+    body.appendChild(detail);
+    li.appendChild(marker);
+    li.appendChild(body);
+    workflowTimeline.appendChild(li);
+  });
+
+  workflowTimeline.classList.toggle('empty-list', !(Array.isArray(items) && items.length));
+}
+
 function renderDepartmentProfile(profile, department) {
   if (
     !(
@@ -503,6 +569,14 @@ function renderSummary() {
   if (fields.recommendedDepartment) fields.recommendedDepartment.textContent = summary.recommendedDepartment || '待判断';
   if (fields.departmentReason) fields.departmentReason.textContent = summary.departmentReason || '待补充';
   if (fields.triagePriority) fields.triagePriority.textContent = summary.triagePriority || '待判断';
+  const stageLabel = summary.workflowStageLabel || '信息采集中';
+  if (workflowStageLabel) workflowStageLabel.textContent = stageLabel;
+  if (workflowStageBadge) {
+    workflowStageBadge.textContent = stageLabel;
+    applyBadgeTone(workflowStageBadge, summary.workflowStage || 'collecting');
+  }
+  renderWorkflowBanner(summary.handoffBanner, stageLabel);
+  renderWorkflowTimeline(summary.workflowTimeline);
   if (fields.doctorSummary) {
     fields.doctorSummary.textContent = summary.doctorSummary || '患者信息尚未完善，等待对话开始。';
   }
@@ -511,11 +585,16 @@ function renderSummary() {
 
   const badge = fields.triageBadge;
   badge.textContent = summary.triagePriority || '待判断';
-  badge.className = 'triage-badge';
-  if (summary.triagePriority === '普通') badge.classList.add('normal');
-  else if (summary.triagePriority === '尽快') badge.classList.add('warning');
-  else if (summary.triagePriority === '紧急') badge.classList.add('danger');
-  else badge.classList.add('neutral');
+  applyBadgeTone(
+    badge,
+    summary.triagePriority === '普通'
+      ? 'success'
+      : summary.triagePriority === '尽快'
+        ? 'warning'
+        : summary.triagePriority === '紧急'
+          ? 'danger'
+          : 'neutral',
+  );
 
   renderList(fields.accompanyingSymptoms, summary.accompanyingSymptoms, '待补充');
   renderList(fields.redFlags, summary.redFlags, '暂未识别');

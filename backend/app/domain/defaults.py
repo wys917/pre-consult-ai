@@ -24,4 +24,8 @@ def new_default_summary() -> Dict[str, object]:
         "visitPreparation": [],
         "selfCareAdvice": [],
         "followUpPlan": [],
+        "workflowStage": "collecting",
+        "workflowStageLabel": "信息采集中",
+        "handoffBanner": {},
+        "workflowTimeline": [],
     }

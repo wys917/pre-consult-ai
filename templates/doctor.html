@@ -67,12 +67,30 @@
               <p class="sub-value" id="departmentReason">待补充</p>
             </article>
 
-            <article class="summary-card triage-card">
-              <span class="label">就诊优先级</span>
-              <p class="value" id="triagePriority">待判断</p>
-              <span class="triage-badge neutral" id="triageBadge">待判断</span>
+            <article class="summary-card workflow-stage-card">
+              <span class="label">当前流程阶段</span>
+              <p class="value" id="workflowStageLabel">信息采集中</p>
+              <span class="triage-badge neutral" id="workflowStageBadge">信息采集中</span>
             </article>
           </div>
+
+          <article class="workflow-banner info" id="handoffBannerCard">
+            <div class="workflow-banner-head">
+              <span class="workflow-banner-tag" id="handoffBannerTitle">继续补充预问诊信息</span>
+              <span class="workflow-banner-stage" id="workflowStageInline">信息采集中</span>
+            </div>
+            <p id="handoffBannerMessage">请先补齐缺失信息，再进入分诊与挂号流程。</p>
+          </article>
+
+          <article class="list-card workflow-timeline-card">
+            <div class="card-title-row">
+              <h3>交接流程进度</h3>
+              <span class="card-hint">患者输入 → 分诊 → 医生侧 → 挂号</span>
+            </div>
+            <ol id="workflowTimeline" class="workflow-timeline empty-list">
+              <li>等待流程开始</li>
+            </ol>
+          </article>
 
           <details class="accordion-card" open>
             <summary class="accordion-toggle">

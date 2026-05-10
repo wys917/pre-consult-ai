@@ -58,7 +58,69 @@ def test_enrich_summary_workflow_adds_phase2_fields():
     assert "visitPreparation" in enriched
     assert "selfCareAdvice" in enriched
     assert "followUpPlan" in enriched
+    assert "workflowStage" in enriched
+    assert "workflowStageLabel" in enriched
+    assert "handoffBanner" in enriched
+    assert "workflowTimeline" in enriched
     assert isinstance(enriched["visitPreparation"], list)
+
+
+def test_enrich_summary_workflow_marks_collecting_stage_when_information_missing():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "待判断",
+            "triagePriority": "待判断",
+            "missingInformation": ["年龄", "症状持续时间"],
+            "nextQuestion": "请补充年龄和症状持续时间。",
+            "accompanyingSymptoms": [],
+            "redFlags": [],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["workflowStage"] == "collecting"
+    assert enriched["workflowStageLabel"] == "信息采集中"
+    assert enriched["handoffBanner"]["title"] == "继续补充预问诊信息"
+    assert enriched["workflowTimeline"][0]["status"] == "active"
+
+
+def test_enrich_summary_workflow_marks_booking_stage_when_ready():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "呼吸内科",
+            "triagePriority": "尽快",
+            "missingInformation": [],
+            "accompanyingSymptoms": ["发热"],
+            "redFlags": [],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["workflowStage"] == "ready_for_booking"
+    assert enriched["workflowStageLabel"] == "可进入挂号"
+    assert "呼吸内科" in enriched["handoffBanner"]["title"]
+    assert any(step["key"] == "booking" and step["status"] == "active" for step in enriched["workflowTimeline"])
+
+
+def test_enrich_summary_workflow_marks_urgent_handoff():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "急诊科",
+            "triagePriority": "紧急",
+            "missingInformation": [],
+            "accompanyingSymptoms": ["胸痛"],
+            "redFlags": ["持续胸痛"],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["workflowStage"] == "urgent_handoff"
+    assert enriched["handoffBanner"]["level"] == "danger"
+    assert enriched["handoffBanner"]["title"] == "立即急诊分流"
+    assert any(step["key"] == "booking" and step["status"] == "completed" for step in enriched["workflowTimeline"])
 
 
 def test_analyze_conversation_returns_phase2_workflow_fields():

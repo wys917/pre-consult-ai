@@ -9,6 +9,14 @@ FOLLOW_UP_URGENCY_MAP = {
 }
 
 
+STAGE_LABELS = {
+    "collecting": "信息采集中",
+    "ready_for_triage": "可进入分诊",
+    "ready_for_booking": "可进入挂号",
+    "urgent_handoff": "紧急转诊",
+}
+
+
 def build_visit_preparation(summary: Dict[str, object]) -> List[str]:
     preparations: List[str] = []
     department = str(summary.get("recommendedDepartment") or "").strip()
@@ -80,9 +88,94 @@ def build_follow_up_plan(summary: Dict[str, object]) -> List[str]:
     return plan[:3]
 
 
+def resolve_workflow_stage(summary: Dict[str, object]) -> str:
+    priority = str(summary.get("triagePriority") or "待判断")
+    missing = summary.get("missingInformation") or []
+    department = str(summary.get("recommendedDepartment") or "").strip()
+
+    if priority == "紧急":
+        return "urgent_handoff"
+    if missing:
+        return "collecting"
+    if department and department not in {"待判断", "待补充"}:
+        return "ready_for_booking"
+    return "ready_for_triage"
+
+
+def build_handoff_banner(summary: Dict[str, object], stage: str) -> Dict[str, str]:
+    department = str(summary.get("recommendedDepartment") or "").strip() or "待判断"
+    priority = str(summary.get("triagePriority") or "待判断")
+    next_question = str(summary.get("nextQuestion") or "").strip()
+
+    if stage == "urgent_handoff":
+        return {
+            "level": "danger",
+            "title": "立即急诊分流",
+            "message": "系统识别到高风险信号，请停止继续线上补充，优先线下急诊处理。",
+        }
+    if stage == "collecting":
+        return {
+            "level": "info",
+            "title": "继续补充预问诊信息",
+            "message": next_question or "请先补齐缺失信息，再进入分诊与挂号流程。",
+        }
+    if stage == "ready_for_booking":
+        return {
+            "level": "success",
+            "title": f"可进入{department}挂号",
+            "message": f"当前优先级为{priority}，结构化摘要已可直接交接给医生侧或挂号台。",
+        }
+    return {
+        "level": "info",
+        "title": "可进入分诊评估",
+        "message": "基础信息已较完整，可继续生成分诊建议或转给医生侧查看。",
+    }
+
+
+def build_workflow_timeline(summary: Dict[str, object], stage: str) -> List[Dict[str, object]]:
+    missing = summary.get("missingInformation") or []
+    department = str(summary.get("recommendedDepartment") or "").strip()
+
+    collecting_done = not missing
+    booking_ready = bool(department and department not in {"待判断", "待补充"}) and collecting_done and stage != "urgent_handoff"
+
+    return [
+        {
+            "key": "collect",
+            "label": "患者信息采集",
+            "status": "completed" if collecting_done else "active",
+            "detail": "继续补充主诉、病程和关键信息" if not collecting_done else "基础信息已满足当前分诊需求",
+        },
+        {
+            "key": "triage",
+            "label": "AI 分诊整理",
+            "status": "completed" if collecting_done else "pending",
+            "detail": "输出推荐科室、优先级和风险提示",
+        },
+        {
+            "key": "handoff",
+            "label": "医生侧交接",
+            "status": "completed" if booking_ready or stage == "urgent_handoff" else ("active" if collecting_done else "pending"),
+            "detail": "医生端可查看结构化摘要与患者输入记录",
+        },
+        {
+            "key": "booking",
+            "label": "挂号 / 到院处理",
+            "status": "completed" if stage == "urgent_handoff" else ("active" if booking_ready else "pending"),
+            "detail": "进入推荐科室挂号，或紧急情况下直接急诊",
+        },
+    ]
+
+
 def enrich_summary_workflow(summary: Dict[str, object]) -> Dict[str, object]:
     enriched = dict(summary)
     enriched["visitPreparation"] = build_visit_preparation(enriched)
     enriched["selfCareAdvice"] = build_self_care_advice(enriched)
     enriched["followUpPlan"] = build_follow_up_plan(enriched)
+
+    stage = resolve_workflow_stage(enriched)
+    enriched["workflowStage"] = stage
+    enriched["workflowStageLabel"] = STAGE_LABELS.get(stage, STAGE_LABELS["collecting"])
+    enriched["handoffBanner"] = build_handoff_banner(enriched, stage)
+    enriched["workflowTimeline"] = build_workflow_timeline(enriched, stage)
     return enriched
