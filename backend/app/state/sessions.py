@@ -5,6 +5,7 @@ from threading import Lock
 from typing import Dict, List, Optional
 
 from backend.app.domain.defaults import new_default_summary
+from backend.app.services.workflow import enrich_summary_workflow
 
 SESSION_STATES: Dict[str, Dict[str, object]] = {}
 SESSION_SUBSCRIBERS: Dict[str, List[Queue]] = {}
@@ -19,9 +20,10 @@ def build_session_payload(
     patient_inputs: Optional[List[Dict[str, object]]] = None,
     updated_at: str = "",
 ) -> Dict[str, object]:
+    safe_summary = summary if isinstance(summary, dict) else new_default_summary()
     return {
         "sessionId": session_id,
-        "summary": summary if isinstance(summary, dict) else new_default_summary(),
+        "summary": enrich_summary_workflow(safe_summary),
         "meta": meta if isinstance(meta, dict) else {},
         "patientInputs": patient_inputs if isinstance(patient_inputs, list) else [],
         "updatedAt": updated_at or datetime.now().isoformat(timespec="seconds"),
