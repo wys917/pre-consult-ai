@@ -787,6 +787,31 @@ a.secondary-btn {
   line-height: 1.75;
 }
 
+.review-metrics-grid {
+  margin-bottom: 16px;
+}
+
+.compact-metric-card .value {
+  font-size: 22px;
+}
+
+.doctor-handoff-card,
+.next-step-card {
+  margin-bottom: 16px;
+}
+
+.doctor-handoff-note {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(243, 246, 251, 0.92);
+  border: 1px solid rgba(214, 223, 236, 0.94);
+  color: #22324d;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-family: inherit;
+}
+
 .workflow-timeline-card {
   margin-bottom: 16px;
 }

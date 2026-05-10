@@ -14,6 +14,7 @@ from backend.app.services.booking import (
     list_departments,
 )
 from backend.app.services.providers import call_model_api
+from backend.app.services.workflow import enrich_summary_workflow
 from backend.app.services.triage import (
     analyze_conversation,
     build_department_profile,
@@ -267,6 +268,7 @@ def api_appointments():
     department = str(data.get("department", "")).strip()
     doctor_id = str(data.get("doctorId", "")).strip()
     patient_name = str(data.get("patientName", "")).strip() or "患者"
+    session_id = normalize_session_id(data.get("sessionId"))
 
     if not department or not doctor_id:
         return jsonify({"error": "department 和 doctorId 为必填"}), 400
@@ -278,7 +280,28 @@ def api_appointments():
             patient_name=patient_name,
             doctor_schedules=DOCTOR_SCHEDULES,
         )
-        return jsonify(result)
+
+        with SESSION_LOCK:
+            existing = SESSION_STATES.get(session_id) or build_session_payload(session_id)
+            summary = dict(existing.get("summary") or {})
+            summary["recommendedDepartment"] = department or summary.get("recommendedDepartment", "待判断")
+            summary["bookingStatus"] = "booked"
+            summary["bookingRecord"] = {
+                "appointmentId": result.get("appointmentId", ""),
+                "department": result.get("department", department),
+                "doctorName": (result.get("doctor") or {}).get("name", ""),
+                "schedule": (result.get("doctor") or {}).get("schedule", ""),
+            }
+            session_payload = build_session_payload(
+                session_id,
+                summary=summary,
+                meta=existing.get("meta") if isinstance(existing.get("meta"), dict) else {},
+                patient_inputs=existing.get("patientInputs") if isinstance(existing.get("patientInputs"), list) else [],
+            )
+            SESSION_STATES[session_id] = session_payload
+
+        publish_session_event(session_id, "update", session_payload)
+        return jsonify({**result, "sessionId": session_id, "summary": session_payload["summary"]})
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
     except LookupError:

@@ -12,6 +12,17 @@ from backend.app.services.session_helpers import (
 from backend.app.state.sessions import build_session_payload
 
 
+def test_build_session_payload_includes_workflow_review_defaults():
+    payload = build_session_payload("review-session")
+
+    summary = payload["summary"]
+    assert isinstance(summary["patientNextSteps"], list)
+    assert len(summary["patientNextSteps"]) >= 1
+    assert summary["needsManualReview"] is False
+    assert summary["riskSource"] == "rule"
+    assert summary["lifecycleState"] in {"intake_started", "triage_ready"}
+
+
 def test_create_app_registers_expected_config_and_routes():
     app = create_app()
 

@@ -28,4 +28,13 @@ def new_default_summary() -> Dict[str, object]:
         "workflowStageLabel": "信息采集中",
         "handoffBanner": {},
         "workflowTimeline": [],
+        "bookingStatus": "pending",
+        "bookingRecord": {},
+        "doctorHandoff": {},
+        "patientNextSteps": [],
+        "confidenceScore": 0.0,
+        "reviewReason": "",
+        "riskSource": "rule",
+        "needsManualReview": False,
+        "lifecycleState": "intake_started",
     }

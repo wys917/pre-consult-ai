@@ -122,6 +122,29 @@
             <p id="handoffBannerMessage">请先补齐缺失信息，再进入分诊与挂号流程。</p>
           </article>
 
+          <article class="list-card next-step-card">
+            <div class="card-title-row">
+              <h3>下一步怎么做</h3>
+              <span class="card-hint">患者侧行动建议</span>
+            </div>
+            <ul id="patientNextSteps" class="chip-list empty-list"><li>等待系统生成下一步建议</li></ul>
+          </article>
+
+          <article class="summary-columns three-col review-metrics-grid">
+            <article class="summary-card compact-metric-card">
+              <span class="label">人工复核</span>
+              <p class="value" id="needsManualReview">否</p>
+            </article>
+            <article class="summary-card compact-metric-card">
+              <span class="label">风险来源</span>
+              <p class="value" id="riskSource">rule</p>
+            </article>
+            <article class="summary-card compact-metric-card">
+              <span class="label">当前置信度</span>
+              <p class="value" id="confidenceScore">0%</p>
+            </article>
+          </article>
+
           <article class="list-card workflow-timeline-card">
             <div class="card-title-row">
               <h3>交接流程进度</h3>

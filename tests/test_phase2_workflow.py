@@ -7,6 +7,107 @@ from backend.app.services.workflow import (
 )
 
 
+def test_enrich_summary_workflow_flags_manual_review_for_missing_critical_fields():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "待判断",
+            "triagePriority": "待判断",
+            "missingInformation": ["年龄", "症状持续时间", "最高体温", "既往病史"],
+            "accompanyingSymptoms": ["发热"],
+            "redFlags": [],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["needsManualReview"] is True
+    assert enriched["riskSource"] == "rule"
+    assert enriched["confidenceScore"] < 0.5
+    assert "关键字段缺失较多" in enriched["reviewReason"]
+
+
+def test_enrich_summary_workflow_flags_manual_review_for_conflicting_signals():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "全科医学科",
+            "triagePriority": "普通",
+            "missingInformation": [],
+            "accompanyingSymptoms": ["胸痛", "呼吸困难"],
+            "redFlags": [],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["needsManualReview"] is True
+    assert enriched["riskSource"] == "hybrid"
+    assert enriched["confidenceScore"] < 0.6
+    assert "高风险症状与当前分诊结果不一致" in enriched["reviewReason"]
+
+
+def test_enrich_summary_workflow_assigns_lifecycle_state_when_ready_for_booking():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "呼吸内科",
+            "triagePriority": "尽快",
+            "missingInformation": [],
+            "accompanyingSymptoms": ["发热", "咳嗽"],
+            "redFlags": [],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["lifecycleState"] == "ready_for_booking"
+    assert enriched["needsManualReview"] is False
+    assert enriched["confidenceScore"] >= 0.7
+
+
+def test_enrich_summary_workflow_marks_booked_lifecycle_and_handoff_card():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "呼吸内科",
+            "triagePriority": "普通",
+            "missingInformation": [],
+            "accompanyingSymptoms": ["咳嗽"],
+            "redFlags": [],
+            "pastHistory": ["高血压"],
+            "allergyHistory": "否认明确过敏史",
+            "imageFindings": "未提供影像",
+            "bookingStatus": "booked",
+            "bookingRecord": {
+                "appointmentId": "APT-12345678",
+                "department": "呼吸内科",
+                "doctorName": "张医生",
+            },
+        }
+    )
+
+    assert enriched["workflowStage"] == "booked"
+    assert enriched["lifecycleState"] == "booked"
+    assert enriched["doctorHandoff"]["title"] == "医生接诊交接卡"
+    assert "APT-12345678" in enriched["doctorHandoff"]["actions"][0]
+    assert enriched["patientNextSteps"][0].startswith("已完成挂号：APT-12345678")
+
+
+def test_enrich_summary_workflow_generates_patient_next_steps_for_ready_booking():
+    enriched = enrich_summary_workflow(
+        {
+            "recommendedDepartment": "消化内科",
+            "triagePriority": "尽快",
+            "missingInformation": [],
+            "accompanyingSymptoms": ["腹痛"],
+            "redFlags": [],
+            "pastHistory": [],
+            "imageFindings": "未提供影像",
+        }
+    )
+
+    assert enriched["workflowStage"] == "ready_for_booking"
+    assert any("消化内科" in item for item in enriched["patientNextSteps"])
+    assert any("挂号完成后" in item for item in enriched["patientNextSteps"])
+
+
 def test_build_visit_preparation_includes_department_and_history_context():
     summary = {
         "recommendedDepartment": "呼吸内科",

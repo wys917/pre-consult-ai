@@ -82,6 +82,30 @@
             <p id="handoffBannerMessage">请先补齐缺失信息，再进入分诊与挂号流程。</p>
           </article>
 
+          <article class="summary-columns three-col review-metrics-grid">
+            <article class="summary-card compact-metric-card">
+              <span class="label">人工复核</span>
+              <p class="value" id="needsManualReview">否</p>
+            </article>
+            <article class="summary-card compact-metric-card">
+              <span class="label">风险来源</span>
+              <p class="value" id="riskSource">rule</p>
+            </article>
+            <article class="summary-card compact-metric-card">
+              <span class="label">当前置信度</span>
+              <p class="value" id="confidenceScore">0%</p>
+            </article>
+          </article>
+
+          <article class="list-card doctor-handoff-card">
+            <div class="card-title-row">
+              <h3 id="doctorHandoffTitle">医生接诊交接卡</h3>
+              <span class="card-hint">可直接复制给医生/分诊台</span>
+            </div>
+            <pre id="doctorHandoffNote" class="doctor-handoff-note">患者信息尚未完善，等待对话开始。</pre>
+            <ul id="doctorHandoffActions" class="chip-list empty-list"><li>等待生成接诊动作</li></ul>
+          </article>
+
           <article class="list-card workflow-timeline-card">
             <div class="card-title-row">
               <h3>交接流程进度</h3>
