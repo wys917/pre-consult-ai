@@ -9,7 +9,7 @@ from backend.app.services.session_helpers import (
 
 
 def create_app() -> Flask:
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="../../templates", static_folder="../../static")
     app.config["NORMALIZE_SESSION_ID"] = normalize_session_id
     app.config["EXTRACT_PATIENT_INPUTS"] = extract_patient_inputs
     app.config["BUILD_ASSISTANT_REPLY"] = build_assistant_reply
