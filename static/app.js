@@ -191,7 +191,7 @@ const fields = {
 };
 
 const hasChat = Boolean(chatWindow && messageInput && sendBtn);
-const hasSummary = Boolean(fields.chiefComplaint && fields.triageBadge);
+const hasSummary = Boolean(fields.chiefComplaint && fields.recommendedDepartment);
 const shouldStreamSummary = hasSummary && !hasChat;
 
 function renderPatientInputs() {
@@ -624,17 +624,19 @@ function renderSummary() {
   if (fields.medicationHistory) fields.medicationHistory.textContent = summary.medicationHistory || '待补充';
 
   const badge = fields.triageBadge;
-  badge.textContent = summary.triagePriority || '待判断';
-  applyBadgeTone(
-    badge,
-    summary.triagePriority === '普通'
-      ? 'success'
-      : summary.triagePriority === '尽快'
-        ? 'warning'
-        : summary.triagePriority === '紧急'
-          ? 'danger'
-          : 'neutral',
-  );
+  if (badge) {
+    badge.textContent = summary.triagePriority || '待判断';
+    applyBadgeTone(
+      badge,
+      summary.triagePriority === '普通'
+        ? 'success'
+        : summary.triagePriority === '尽快'
+          ? 'warning'
+          : summary.triagePriority === '紧急'
+            ? 'danger'
+            : 'neutral',
+    );
+  }
 
   renderList(fields.accompanyingSymptoms, summary.accompanyingSymptoms, '待补充');
   renderList(fields.redFlags, summary.redFlags, '暂未识别');
@@ -698,6 +700,10 @@ async function sendMessage(text) {
     if (!response.ok) throw new Error(data.error || '请求失败');
 
     summary = { ...defaultSummary, ...data.summary };
+    if (data.provider && providerSelect) {
+      providerSelect.value = data.provider;
+      setProviderStatus();
+    }
     lastMeta = {
       source: data.source || lastMeta.source,
       provider: data.provider || provider || lastMeta.provider,
@@ -1159,6 +1165,28 @@ function startSummaryStream() {
   source.addEventListener('reset', (event) => handle(event, { reset: true }));
 }
 
+function hydratePatientSessionState() {
+  if (!hasChat) return;
+  if (!sessionId || sessionId === DEFAULT_SESSION_ID) return;
+
+  fetch(`/api/sessions/${encodeURIComponent(sessionId)}/stream`, { headers: { Accept: 'text/event-stream' } })
+    .then((response) => {
+      if (!response.ok) throw new Error('加载会话状态失败');
+      return response.text();
+    })
+    .then((raw) => {
+      const match = raw.match(/event: state\ndata: (.+?)\n\n/s);
+      if (!match) return;
+      const payload = JSON.parse(match[1]);
+      applySessionPayload(payload);
+      if (payload && payload.meta && payload.meta.provider && providerSelect) {
+        providerSelect.value = payload.meta.provider;
+        setProviderStatus();
+      }
+    })
+    .catch(() => {});
+}
+
 if (uploadBtn && imageInput) {
   uploadBtn.addEventListener('click', () => imageInput.click());
 }
@@ -1211,4 +1239,5 @@ lockWheelToContainer(summaryScroll);
 initSessionUI();
 setProviderStatus();
 resetConversation();
+hydratePatientSessionState();
 startSummaryStream();
