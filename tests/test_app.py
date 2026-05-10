@@ -1,4 +1,5 @@
 from copy import deepcopy
+from unittest.mock import patch
 
 import pytest
 
@@ -146,15 +147,14 @@ def test_api_chat_deepseek_provider_uses_selected_channel(client, monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
     monkeypatch.setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
-    monkeypatch.setattr("app.requests.post", fake_post)
-
-    response = client.post(
-        "/api/chat",
-        json={
-            "provider": "deepseek",
-            "messages": [{"role": "user", "content": "我发烧咳嗽三天"}],
-        },
-    )
+    with patch("backend.app.services.providers.requests.post", fake_post):
+        response = client.post(
+            "/api/chat",
+            json={
+                "provider": "deepseek",
+                "messages": [{"role": "user", "content": "我发烧咳嗽三天"}],
+            },
+        )
 
     assert response.status_code == 200
     payload = response.get_json()

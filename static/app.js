@@ -15,6 +15,22 @@ const defaultSummary = {
   consistencyAlerts: [],
   imageFindings: '未提供影像',
   departmentProfile: {},
+  visitPreparation: [],
+  selfCareAdvice: [],
+  followUpPlan: [],
+  workflowStage: 'collecting',
+  workflowStageLabel: '信息采集中',
+  handoffBanner: {},
+  workflowTimeline: [],
+  bookingStatus: 'pending',
+  bookingRecord: {},
+  doctorHandoff: {},
+  patientNextSteps: [],
+  confidenceScore: 0,
+  reviewReason: '',
+  riskSource: 'rule',
+  needsManualReview: false,
+  lifecycleState: 'intake_started',
 };
 
 const providerLabels = {
@@ -132,12 +148,26 @@ const patientInputsMeta = document.getElementById('patientInputsMeta');
 const bookingPriority = document.getElementById('bookingPriority');
 const bookingDate = document.getElementById('bookingDate');
 const bookingHint = document.getElementById('bookingHint');
+const handoffBannerCard = document.getElementById('handoffBannerCard');
+const handoffBannerTitle = document.getElementById('handoffBannerTitle');
+const handoffBannerMessage = document.getElementById('handoffBannerMessage');
+const workflowStageLabel = document.getElementById('workflowStageLabel');
+const workflowStageBadge = document.getElementById('workflowStageBadge');
+const workflowStageInline = document.getElementById('workflowStageInline');
+const workflowTimeline = document.getElementById('workflowTimeline');
 const departmentOverview = document.getElementById('departmentOverview');
 const departmentLocation = document.getElementById('departmentLocation');
 const departmentWaitTime = document.getElementById('departmentWaitTime');
 const departmentTag = document.getElementById('departmentTag');
 const departmentServices = document.getElementById('departmentServices');
 const departmentTips = document.getElementById('departmentTips');
+const patientNextStepsList = document.getElementById('patientNextSteps');
+const confidenceScoreValue = document.getElementById('confidenceScore');
+const needsManualReviewValue = document.getElementById('needsManualReview');
+const riskSourceValue = document.getElementById('riskSource');
+const doctorHandoffTitle = document.getElementById('doctorHandoffTitle');
+const doctorHandoffNote = document.getElementById('doctorHandoffNote');
+const doctorHandoffActions = document.getElementById('doctorHandoffActions');
 
 const fields = {
   consistencyAlerts: document.getElementById('consistencyAlerts'),
@@ -155,6 +185,9 @@ const fields = {
   pastHistory: document.getElementById('pastHistory'),
   allergyHistory: document.getElementById('allergyHistory'),
   medicationHistory: document.getElementById('medicationHistory'),
+  visitPreparation: document.getElementById('visitPreparation'),
+  selfCareAdvice: document.getElementById('selfCareAdvice'),
+  followUpPlan: document.getElementById('followUpPlan'),
 };
 
 const hasChat = Boolean(chatWindow && messageInput && sendBtn);
@@ -364,6 +397,82 @@ function renderMissingList(items) {
   fields.missingInformation.classList.remove('empty-list');
 }
 
+function applyBadgeTone(element, tone) {
+  if (!element) return;
+  element.className = 'triage-badge';
+  if (tone === 'success' || tone === 'ready_for_booking') element.classList.add('normal');
+  else if (tone === 'warning' || tone === 'ready_for_triage') element.classList.add('warning');
+  else if (tone === 'danger' || tone === 'urgent_handoff') element.classList.add('danger');
+  else element.classList.add('neutral');
+}
+
+function renderDoctorHandoff(card) {
+  if (!(doctorHandoffTitle && doctorHandoffNote && doctorHandoffActions)) return;
+  const safeCard = card && typeof card === 'object' ? card : {};
+  doctorHandoffTitle.textContent = safeCard.title || '医生接诊交接卡';
+  doctorHandoffNote.textContent = safeCard.note || '患者信息尚未完善，等待对话开始。';
+  renderList(doctorHandoffActions, safeCard.actions, '等待生成接诊动作');
+}
+
+function renderReviewMetrics(currentSummary) {
+  if (needsManualReviewValue) {
+    needsManualReviewValue.textContent = currentSummary.needsManualReview ? '是' : '否';
+  }
+  if (riskSourceValue) {
+    riskSourceValue.textContent = currentSummary.riskSource || 'rule';
+  }
+  if (confidenceScoreValue) {
+    const score = Number(currentSummary.confidenceScore || 0);
+    confidenceScoreValue.textContent = `${Math.round(score * 100)}%`;
+  }
+}
+
+function renderWorkflowBanner(banner, stageLabel) {
+  if (!(handoffBannerCard && handoffBannerTitle && handoffBannerMessage && workflowStageInline)) return;
+
+  const safeBanner = banner && typeof banner === 'object' ? banner : {};
+  handoffBannerCard.className = 'workflow-banner';
+  handoffBannerCard.classList.add(safeBanner.level || 'info');
+  handoffBannerTitle.textContent = safeBanner.title || '继续补充预问诊信息';
+  handoffBannerMessage.textContent = safeBanner.message || '请先补齐缺失信息，再进入分诊与挂号流程。';
+  workflowStageInline.textContent = stageLabel || '信息采集中';
+}
+
+function renderWorkflowTimeline(items) {
+  if (!workflowTimeline) return;
+  workflowTimeline.innerHTML = '';
+
+  const list = Array.isArray(items) && items.length
+    ? items
+    : [{ label: '等待流程开始', detail: '发送首条患者描述后开始生成流程进度。', status: 'pending' }];
+
+  list.forEach((item) => {
+    const li = document.createElement('li');
+    li.className = `workflow-step ${item.status || 'pending'}`;
+
+    const marker = document.createElement('span');
+    marker.className = 'workflow-step-marker';
+    marker.textContent = item.status === 'completed' ? '✓' : item.status === 'active' ? '•' : '·';
+
+    const body = document.createElement('div');
+    body.className = 'workflow-step-body';
+
+    const title = document.createElement('strong');
+    title.textContent = item.label || '未命名步骤';
+
+    const detail = document.createElement('p');
+    detail.textContent = item.detail || '';
+
+    body.appendChild(title);
+    body.appendChild(detail);
+    li.appendChild(marker);
+    li.appendChild(body);
+    workflowTimeline.appendChild(li);
+  });
+
+  workflowTimeline.classList.toggle('empty-list', !(Array.isArray(items) && items.length));
+}
+
 function renderDepartmentProfile(profile, department) {
   if (
     !(
@@ -497,6 +606,17 @@ function renderSummary() {
   if (fields.recommendedDepartment) fields.recommendedDepartment.textContent = summary.recommendedDepartment || '待判断';
   if (fields.departmentReason) fields.departmentReason.textContent = summary.departmentReason || '待补充';
   if (fields.triagePriority) fields.triagePriority.textContent = summary.triagePriority || '待判断';
+  const stageLabel = summary.workflowStageLabel || '信息采集中';
+  if (workflowStageLabel) workflowStageLabel.textContent = stageLabel;
+  if (workflowStageBadge) {
+    workflowStageBadge.textContent = stageLabel;
+    applyBadgeTone(workflowStageBadge, summary.workflowStage || 'collecting');
+  }
+  renderWorkflowBanner(summary.handoffBanner, stageLabel);
+  renderWorkflowTimeline(summary.workflowTimeline);
+  renderList(patientNextStepsList, summary.patientNextSteps, '等待系统生成下一步建议');
+  renderReviewMetrics(summary);
+  renderDoctorHandoff(summary.doctorHandoff);
   if (fields.doctorSummary) {
     fields.doctorSummary.textContent = summary.doctorSummary || '患者信息尚未完善，等待对话开始。';
   }
@@ -505,16 +625,24 @@ function renderSummary() {
 
   const badge = fields.triageBadge;
   badge.textContent = summary.triagePriority || '待判断';
-  badge.className = 'triage-badge';
-  if (summary.triagePriority === '普通') badge.classList.add('normal');
-  else if (summary.triagePriority === '尽快') badge.classList.add('warning');
-  else if (summary.triagePriority === '紧急') badge.classList.add('danger');
-  else badge.classList.add('neutral');
+  applyBadgeTone(
+    badge,
+    summary.triagePriority === '普通'
+      ? 'success'
+      : summary.triagePriority === '尽快'
+        ? 'warning'
+        : summary.triagePriority === '紧急'
+          ? 'danger'
+          : 'neutral',
+  );
 
   renderList(fields.accompanyingSymptoms, summary.accompanyingSymptoms, '待补充');
   renderList(fields.redFlags, summary.redFlags, '暂未识别');
   renderList(fields.pastHistory, summary.pastHistory, '待补充');
   renderList(fields.consistencyAlerts, summary.consistencyAlerts, '暂无');
+  renderList(fields.visitPreparation, summary.visitPreparation, '待生成');
+  renderList(fields.selfCareAdvice, summary.selfCareAdvice, '待生成');
+  renderList(fields.followUpPlan, summary.followUpPlan, '待生成');
   renderMissingList(summary.missingInformation);
   updateBookingPanel();
 }
@@ -650,6 +778,9 @@ function buildSummaryText() {
     `科室推荐原因：${summary.departmentReason || '待补充'}`,
     `就诊优先级：${summary.triagePriority || '待判断'}`,
     `仍待补充信息：${formatList(summary.missingInformation, '无')}`,
+    `就诊前准备：${formatList(summary.visitPreparation, '待生成')}`,
+    `居家观察建议：${formatList(summary.selfCareAdvice, '待生成')}`,
+    `后续流程建议：${formatList(summary.followUpPlan, '待生成')}`,
     '',
     '【医生端摘要】',
     summary.doctorSummary || '患者信息尚未完善，等待对话开始。',
@@ -882,6 +1013,7 @@ async function registerDoctor(event, department, doctorId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        sessionId,
         department,
         doctorId,
         patientName: '演示患者',
@@ -892,6 +1024,10 @@ async function registerDoctor(event, department, doctorId) {
 
     btn.textContent = '挂号成功';
     btn.classList.add('success-btn');
+    if (data.summary && typeof data.summary === 'object') {
+      summary = { ...defaultSummary, ...data.summary };
+      renderSummary();
+    }
     openSuccessBanner(data);
     await loadDoctorAvailability({ silent: true });
   } catch (error) {
