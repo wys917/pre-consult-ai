@@ -1,5 +1,11 @@
 # Pre-Consult AI
 
+## Live Demo
+
+- Combined showcase: https://pre-consult-ai.onrender.com/combined
+- Patient interface: https://pre-consult-ai.onrender.com/patient
+- Doctor interface: https://pre-consult-ai.onrender.com/doctor
+
 *An AI-assisted pre-triage and medical summary system for outpatient intake.*
 
 Pre-Consult AI is a portfolio-grade upgrade of a medical AI course project. It transforms free-form patient conversations into a structured pre-consult summary, highlights red-flag symptoms, recommends a department, simulates appointment booking, and streams the result to a doctor-facing view in real time.
