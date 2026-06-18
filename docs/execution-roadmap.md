@@ -3,11 +3,11 @@
 > Living plan for the portfolio-focused rewrite. Continue autonomously checkpoint by checkpoint.
 
 ## Current status
-- Active branch: `refactor/phase1-architecture`
-- Phase 1 compatibility + backend extraction: substantially complete
-- Phase 2 workflow UX: in progress
-- Latest completed checkpoint: workflow stage, handoff banner, and timeline added to patient/doctor views
-- Repo now also contains partial groundwork for booking/handoff summary fields in defaults/workflow services; treat that as in-progress code to either complete cleanly or revise in the next implementation pass
+- Active branch: `feature/doctor-workbench-queue`
+- Phase 1 compatibility + backend extraction: complete
+- Phase 2 workflow UX: substantially complete (review metadata + lifecycle state shipped on main)
+- Phase 3.1 groundwork: case queue service + `/api/cases` + `/api/cases/<id>` + `/doctor/queue` workbench page delivered
+- Latest completed checkpoint: doctor workbench queue with risk-first sorting, status filters, and manual-review highlighting
 
 ## Phase definitions
 
@@ -247,11 +247,11 @@ Why:
 - Prefer smallest vertical slice with user-visible impact, tests, commit, push.
 
 ## Immediate next recommended implementation checkpoint
-1. Add `confidence_score`, `review_reason`, `risk_source`, `needs_manual_review` to summary schema/defaults
-2. Implement deterministic/manual-review trigger rules in workflow/triage enrichment
-3. Introduce explicit lifecycle state field alongside workflow stage
-4. Surface these fields in doctor view and session payload/tests
-5. Then proceed to booking completion + doctor handoff card or directly into queue groundwork
+1. Persist per-session lifecycle/status history so the queue can show transitions, not just the latest snapshot
+2. Add a per-case detail drawer on `/doctor/queue` that reuses the single-session summary components
+3. Surface queue counts + manual-review pill on the main `/doctor` view (entry point affordance)
+4. Seed mock demo cases (respiratory, abdomen, chest pain, rash, neuro) so the queue has content without manual interaction
+5. Begin summary-diff / replay groundwork for Phase 3.2
 
 ## Verification standard per checkpoint
 - Run focused pytest first, then broader app tests if touched

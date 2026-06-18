@@ -13,6 +13,11 @@ from backend.app.services.booking import (
     list_department_doctors,
     list_departments,
 )
+from backend.app.services.case_queue import (
+    STATUS_LABELS as CASE_STATUS_LABELS,
+    build_case_queue,
+    build_case_row,
+)
 from backend.app.services.providers import call_model_api
 from backend.app.services.workflow import enrich_summary_workflow
 from backend.app.services.triage import (
@@ -120,6 +125,38 @@ def patient_view():
 @bp.get("/doctor")
 def doctor_view():
     return render_template("doctor.html")
+
+
+@bp.get("/doctor/queue")
+def doctor_queue_view():
+    return render_template("doctor_queue.html")
+
+
+@bp.get("/api/cases")
+def api_case_queue():
+    status_filter = request.args.get("status") or None
+    with SESSION_LOCK:
+        snapshot = {sid: dict(state) for sid, state in SESSION_STATES.items()}
+    cases = build_case_queue(snapshot, status_filter=status_filter)
+    return jsonify(
+        {
+            "cases": cases,
+            "total": len(cases),
+            "statusLabels": CASE_STATUS_LABELS,
+        }
+    )
+
+
+@bp.get("/api/cases/<session_id>")
+def api_case_detail(session_id: str):
+    session_id = normalize_session_id(session_id)
+    with SESSION_LOCK:
+        state = SESSION_STATES.get(session_id)
+        state_copy = dict(state) if isinstance(state, dict) else None
+    if not state_copy:
+        return jsonify({"error": "未找到会话"}), 404
+    row = build_case_row(session_id, state_copy)
+    return jsonify({"case": row, "state": state_copy})
 
 
 @bp.get("/api/sessions/<session_id>/stream")

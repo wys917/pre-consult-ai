@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>医生端 · 案例队列 Workbench</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="ambient ambient-left"></div>
+  <div class="ambient ambient-right"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Medical AI Demo · Phase 3.1</p>
+        <h1>医生端 · 案例队列 Workbench</h1>
+        <p class="subtitle">按风险优先级与人工复核标记排序，可跳转到单个会话的完整摘要视图。</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="control-stack">
+          <div class="status-pill" id="queueTotalPill">会话总数：--</div>
+          <div class="status-pill" id="queueUpdatedPill">自动刷新：每 5s</div>
+        </div>
+        <a class="secondary-btn" href="/doctor">返回单会话视图</a>
+      </div>
+    </header>
+
+    <main class="main-grid single">
+      <section class="panel">
+        <div class="panel-header summary-header">
+          <div>
+            <h2>活跃案例</h2>
+            <p>按 紧急 → 需人工复核 → 就诊优先级 → 最近更新 排序。</p>
+          </div>
+          <div class="summary-actions case-queue-filters" id="queueStatusFilters">
+            <button class="secondary-btn is-active" data-status="">全部</button>
+            <button class="secondary-btn" data-status="escalated">紧急转诊</button>
+            <button class="secondary-btn" data-status="manual_review">需人工复核</button>
+            <button class="secondary-btn" data-status="ready_for_booking">待挂号</button>
+            <button class="secondary-btn" data-status="in_review">待分诊</button>
+            <button class="secondary-btn" data-status="booked">已挂号</button>
+          </div>
+        </div>
+
+        <div class="case-queue-list" id="caseQueueList">
+          <div class="doctor-state-card">正在加载案例...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='case_queue.js') }}"></script>
+</body>
+</html>
